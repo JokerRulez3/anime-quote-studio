@@ -57,24 +57,72 @@ const db = {
   async signIn(email, password) {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: email,
+        password: password 
+      })
     });
+    
     const data = await res.json();
-    if (data.access_token) {
+    
+    // Check for errors
+    if (data.error || !data.access_token) {
+      throw new Error(data.error?.message || data.msg || 'Sign in failed');
+    }
+    
+    // Store auth data
+    if (data.access_token && data.user) {
       localStorage.setItem('auth_token', data.access_token);
       localStorage.setItem('user_id', data.user.id);
       localStorage.setItem('user_email', data.user.email);
     }
+    
     return data;
   },
   async signUp(email, password) {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: email,
+        password: password,
+        data: {}  // Empty metadata
+      })
     });
-    return res.json();
+    
+    const data = await res.json();
+    
+    // Check for errors
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+    
+    // Check for rate limit
+    if (data.code === 429) {
+      throw new Error('Too many requests. Please wait a minute and try again.');
+    }
+    
+    // Store auth data if successful
+    if (data.access_token && data.user) {
+      localStorage.setItem('auth_token', data.access_token);
+      localStorage.setItem('user_id', data.user.id);
+      localStorage.setItem('user_email', data.user.email);
+    } else if (data.user) {
+      // Email confirmation might be required
+      return { 
+        user: data.user, 
+        message: 'Please check your email to confirm your account.' 
+      };
+    }
+    
+    return data;
   }
 };
 
