@@ -3,7 +3,7 @@ import { Search, Download, Sparkles, Twitter, Instagram, Heart, Shuffle, Loader,
 
 // ==================== CONFIGURATION ====================
 const SUPABASE_URL = 'https://omfjfnzkmrglzaytdzls.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tZmpmbnprbXJnbHpheXRkemxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3Mzc4OTMsImV4cCI6MjA3NTMxMzg5M30.tIzUZ3VxD8fynL3JZJ7zGqOIamYQZ5Wn-eCCfv7ud2M';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tZmpmbnprbXJnbHpheXRkemxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3Mzc4OTMsImV4cCI6MjA3NTMxMzg5M30.tIzUZ3VxD8fynL3JZJ7zGqOIamYQZ5Wn-eCCfv7ud2M';
 
 const BACKGROUNDS = [
   { id: 1, name: 'Sunset', css: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', premium: false },
@@ -22,107 +22,151 @@ const FONTS = [
   { id: 3, name: 'Bold', css: 'Impact, sans-serif', premium: true },
 ];
 
-// ==================== SERVICES ====================
+// ==================== SUPABASE CLIENT ====================
+class SupabaseAuth {
+  constructor(url, key) {
+    this.url = url;
+    this.key = key;
+  }
+
+  async signUp(email, password) {
+    try {
+      const response = await fetch(`${this.url}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'apikey': this.key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error_description || 'Sign up failed');
+      }
+
+      if (data.access_token) {
+        localStorage.setItem('sb_access_token', data.access_token);
+        localStorage.setItem('sb_user_id', data.user.id);
+        localStorage.setItem('sb_user_email', data.user.email);
+      }
+
+      return { user: data.user, session: data };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async signIn(email, password) {
+    try {
+      const response = await fetch(`${this.url}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'apikey': this.key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error_description || data.msg || 'Invalid login credentials');
+      }
+
+      if (data.access_token) {
+        localStorage.setItem('sb_access_token', data.access_token);
+        localStorage.setItem('sb_user_id', data.user.id);
+        localStorage.setItem('sb_user_email', data.user.email);
+      }
+
+      return { user: data.user, session: data };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  signOut() {
+    localStorage.removeItem('sb_access_token');
+    localStorage.removeItem('sb_user_id');
+    localStorage.removeItem('sb_user_email');
+  }
+
+  getSession() {
+    const token = localStorage.getItem('sb_access_token');
+    const userId = localStorage.getItem('sb_user_id');
+    const email = localStorage.getItem('sb_user_email');
+    
+    if (token && userId) {
+      return { user: { id: userId, email }, token };
+    }
+    return null;
+  }
+}
+
+const auth = new SupabaseAuth(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==================== DATABASE FUNCTIONS ====================
 const db = {
   async query(table, columns = '*', filters = {}) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${columns}`;
     Object.entries(filters).forEach(([k, v]) => url += `&${k}=eq.${v}`);
-    const token = localStorage.getItem('auth_token');
-    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, ...(token && { 'Authorization': `Bearer ${token}` }) }});
+    const token = localStorage.getItem('sb_access_token');
+    const res = await fetch(url, { 
+      headers: { 
+        'apikey': SUPABASE_ANON_KEY, 
+        'Authorization': token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
     return res.json();
   },
+  
   async update(table, id, data) {
+    const token = localStorage.getItem('sb_access_token');
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      headers: { 
+        'apikey': SUPABASE_ANON_KEY, 
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`
+      },
       body: JSON.stringify(data)
     });
     return res.ok;
   },
+  
   async insert(table, data) {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('sb_access_token');
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) },
+      headers: { 
+        'apikey': SUPABASE_ANON_KEY, 
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`
+      },
       body: JSON.stringify(data)
     });
     return res.json();
   },
+  
   async delete(table, filters) {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('sb_access_token');
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
     Object.entries(filters).forEach(([k, v]) => url += `${k}=eq.${v}&`);
-    await fetch(url, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, ...(token && { 'Authorization': `Bearer ${token}` }) }});
-  },
-  async signIn(email, password) {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        email: email,
-        password: password 
-      })
+    await fetch(url, { 
+      method: 'DELETE', 
+      headers: { 
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`
+      }
     });
-    
-    const data = await res.json();
-    
-    // Check for errors
-    if (data.error || !data.access_token) {
-      throw new Error(data.error?.message || data.msg || 'Sign in failed');
-    }
-    
-    // Store auth data
-    if (data.access_token && data.user) {
-      localStorage.setItem('auth_token', data.access_token);
-      localStorage.setItem('user_id', data.user.id);
-      localStorage.setItem('user_email', data.user.email);
-    }
-    
-    return data;
-  },
-  async signUp(email, password) {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        email: email,
-        password: password,
-        data: {}  // Empty metadata
-      })
-    });
-    
-    const data = await res.json();
-    
-    // Check for errors
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-    
-    // Check for rate limit
-    if (data.code === 429) {
-      throw new Error('Too many requests. Please wait a minute and try again.');
-    }
-    
-    // Store auth data if successful
-    if (data.access_token && data.user) {
-      localStorage.setItem('auth_token', data.access_token);
-      localStorage.setItem('user_id', data.user.id);
-      localStorage.setItem('user_email', data.user.email);
-    } else if (data.user) {
-      // Email confirmation might be required
-      return { 
-        user: data.user, 
-        message: 'Please check your email to confirm your account.' 
-      };
-    }
-    
-    return data;
   }
 };
 
@@ -142,14 +186,14 @@ export default function AnimeQuoteStudio() {
   const [font, setFont] = useState(FONTS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [downloadLimit, setDownloadLimit] = useState(null);
+  const [authError, setAuthError] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    const email = localStorage.getItem('user_email');
-    if (userId) {
-      setUser({ id: userId, email });
-      loadUserData(userId);
+    const session = auth.getSession();
+    if (session) {
+      setUser(session.user);
+      loadUserData(session.user.id);
     }
     loadStats();
   }, []);
@@ -159,8 +203,8 @@ export default function AnimeQuoteStudio() {
       db.query('user_profiles', '*', { id: userId }),
       db.query('user_favorites', 'quote_id', { user_id: userId })
     ]);
-    setProfile(profiles[0]);
-    setFavorites(favs.map(f => f.quote_id));
+    if (profiles && profiles[0]) setProfile(profiles[0]);
+    if (favs) setFavorites(favs.map(f => f.quote_id));
   };
 
   const loadStats = async () => {
@@ -174,22 +218,25 @@ export default function AnimeQuoteStudio() {
 
   const handleAuth = async (email, password, isSignUp) => {
     setIsLoading(true);
+    setAuthError(null);
     try {
-      const data = isSignUp ? await db.signUp(email, password) : await db.signIn(email, password);
-      if (data.user) {
-        setUser({ id: data.user.id, email: data.user.email });
-        setAuthView(null);
-        await loadUserData(data.user.id);
-      } else {
-        alert(data.error?.message || 'Auth failed');
-      }
+      const result = isSignUp 
+        ? await auth.signUp(email, password)
+        : await auth.signIn(email, password);
+      
+      setUser(result.user);
+      setAuthView(null);
+      await loadUserData(result.user.id);
+    } catch (error) {
+      console.error('Auth error:', error);
+      setAuthError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSignOut = () => {
-    localStorage.clear();
+    auth.signOut();
     setUser(null);
     setProfile(null);
     setFavorites([]);
@@ -293,8 +340,10 @@ export default function AnimeQuoteStudio() {
     link.click();
 
     await db.update('quotes', selectedQuote.id, { download_count: (selectedQuote.download_count || 0) + 1 });
-    await db.update('user_profiles', user.id, { downloads_today: (profile.downloads_today || 0) + 1 });
-    await loadUserData(user.id);
+    if (profile) {
+      await db.update('user_profiles', user.id, { downloads_today: (profile.downloads_today || 0) + 1 });
+      await loadUserData(user.id);
+    }
     await loadStats();
   };
 
@@ -307,15 +356,50 @@ export default function AnimeQuoteStudio() {
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-red-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <h2 className="text-3xl font-bold text-center mb-6">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
-          <form onSubmit={(e) => { e.preventDefault(); handleAuth(e.target.email.value, e.target.password.value, isSignUp); }}>
-            <input name="email" type="email" required placeholder="your@email.com" className="w-full px-4 py-3 mb-4 border-2 rounded-lg focus:border-purple-600 outline-none" />
-            <input name="password" type="password" required minLength="6" placeholder="Password" className="w-full px-4 py-3 mb-6 border-2 rounded-lg focus:border-purple-600 outline-none" />
-            <button type="submit" disabled={isLoading} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50">
+          {authError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+              {authError}
+            </div>
+          )}
+          <form onSubmit={(e) => { 
+            e.preventDefault(); 
+            handleAuth(e.target.email.value, e.target.password.value, isSignUp); 
+          }}>
+            <input 
+              name="email" 
+              type="email" 
+              required 
+              placeholder="your@email.com" 
+              className="w-full px-4 py-3 mb-4 border-2 rounded-lg focus:border-purple-600 outline-none" 
+            />
+            <input 
+              name="password" 
+              type="password" 
+              required 
+              minLength="6" 
+              placeholder="Password (min 6 characters)" 
+              className="w-full px-4 py-3 mb-6 border-2 rounded-lg focus:border-purple-600 outline-none" 
+            />
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50"
+            >
               {isLoading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
           </form>
-          <button onClick={() => setAuthView(isSignUp ? 'signin' : 'signup')} className="w-full mt-4 text-purple-600">{isSignUp ? 'Sign in' : 'Sign up'}</button>
-          <button onClick={() => setAuthView(null)} className="w-full mt-2 text-gray-600">← Back</button>
+          <button 
+            onClick={() => { setAuthView(isSignUp ? 'signin' : 'signup'); setAuthError(null); }} 
+            className="w-full mt-4 text-purple-600 hover:underline"
+          >
+            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </button>
+          <button 
+            onClick={() => { setAuthView(null); setAuthError(null); }} 
+            className="w-full mt-2 text-gray-600"
+          >
+            ← Back
+          </button>
         </div>
       </div>
     );
