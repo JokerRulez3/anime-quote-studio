@@ -1,169 +1,173 @@
+// src/lib/quotes.ts
 import { supabase } from "./supabaseClient";
 
-/** Auth helpers */
+// --- Types returned to the UI (match App.tsx expectations) ---
+export type QuoteItem = {
+  id: number;
+  quote_text: string;
+  episode_number: number | null;
+  emotion: string | null;
+  view_count: number;
+  download_count: number;
+  character: { name: string };
+  anime: { title: string };
+  created_at?: string;
+};
+
+export type Stats = { total: number; views: number; downloads: number };
+
+// --- Auth/session ---
 export async function getUserSession() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
+  const { data } = await supabase.auth.getUser();
   return data.user ?? null;
 }
 
-/** Profile + favorites */
+// --- Profile + favorites (ids only) ---
 export async function loadUserData(userId: string) {
-  const [{ data: profiles }, { data: favs }] = await Promise.all([
-    supabase.from("user_profiles").select("*").eq("id", userId).limit(1),
+  const [{ data: p }, { data: favs }] = await Promise.all([
+    supabase.from("user_profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_favorites").select("quote_id").eq("user_id", userId),
   ]);
-  const profile = profiles?.[0] ?? null;
-  const favorites = (favs ?? []).map((f) => f.quote_id);
-  return { profile, favorites };
+
+  return {
+    profile: p ?? null,
+    favorites: (favs ?? []).map((r) => String(r.quote_id)),
+  };
 }
 
-/** Stats */
-export async function loadStats() {
-  const { data: quotes } = await supabase
-    .from("quotes")
-    .select("id,view_count,download_count");
-  const total = quotes?.length ?? 0;
-  const downloads =
-    quotes?.reduce((s, q: any) => s + (q.download_count ?? 0), 0) ?? 0;
-  const views =
-    quotes?.reduce((s, q: any) => s + (q.view_count ?? 0), 0) ?? 0;
-  return { total, downloads, views };
+// --- Landing stats (fast via app_stats, with fallback) ---
+export async function loadStats(): Promise<Stats> {
+  const { data: acc } = await supabase.from("app_stats").select("*").eq("id", 1).maybeSingle();
+  if (acc) {
+    return {
+      total: Number(acc.total_quotes) || 0,
+      views: Number(acc.total_views) || 0,
+      downloads: Number(acc.total_downloads) || 0,
+    };
+  }
+  // fallback if app_stats not present yet
+  const { data: q } = await supabase.from("quotes").select("view_count,download_count", { count: "exact", head: false });
+  const total = q?.length ?? 0;
+  const views = q?.reduce((s, r) => s + (r.view_count || 0), 0) ?? 0;
+  const downloads = q?.reduce((s, r) => s + (r.download_count || 0), 0) ?? 0;
+  return { total, views, downloads };
 }
 
-/** Search (tries RPC search_quotes, falls back to ilike filter) */
-export async function searchQuotes(q: string | null, limit = 24) {
-  if (q && q.trim().length > 0) {
-    // Try RPC-based ranked search first
-    const { data: rpcData, error: rpcErr } = await supabase.rpc(
-      "search_quotes",
-      { q, page: 1, page_size: limit }
-    );
-    if (!rpcErr && rpcData) return normalizeQuotes(rpcData);
+// --- SEARCH (RPC FTS preferred; falls back to REST embedded select) ---
+export async function searchQuotes(query: string, limit = 24): Promise<QuoteItem[]> {
+  const q = (query ?? "").trim();
+
+  // Preferred: RPC FTS (make sure you’ve created the function with args: search_text, page, page_size)
+  const { data: rpc, error: rpcErr } = await supabase.rpc("search_quotes", {
+    search_text: q || null,
+    page: 1,
+    page_size: Math.min(limit, 50),
+  });
+
+  if (!rpcErr && rpc) {
+    // Map flat RPC fields -> nested shape expected by App.tsx
+    return rpc.map((r: any) => ({
+      id: r.id,
+      quote_text: r.quote_text,
+      episode_number: r.episode_number,
+      emotion: r.emotion,
+      view_count: r.view_count,
+      download_count: r.download_count,
+      character: { name: r.character_name },
+      anime: { title: r.anime_title },
+      created_at: r.created_at,
+    })) as QuoteItem[];
   }
 
-  // Fallback: simple list or fuzzy ilike if q present
-  if (q && q.trim().length > 0) {
-    const { data } = await supabase
-      .from("quotes")
-      .select(
-        "id, quote_text, episode_number, emotion, view_count, download_count, character, anime"
-      )
-      .or(
-        `quote_text.ilike.%${q}%,character.ilike.%${q}%,anime.ilike.%${q}%`
-      )
-      .limit(limit);
-    return normalizeQuotes(data ?? []);
-  }
-
-  const { data } = await supabase
+  // Fallback: REST with embedded select + filters on related columns
+  const { data, error } = await supabase
     .from("quotes")
     .select(
-      "id, quote_text, episode_number, emotion, view_count, download_count, character, anime"
+      `
+      id,
+      quote_text,
+      episode_number,
+      emotion,
+      view_count,
+      download_count,
+      created_at,
+      characters!inner(name),
+      anime!inner(title)
+    `
     )
-    .limit(limit);
-  return normalizeQuotes(data ?? []);
+    .eq("status", "approved")
+    .or(
+      q
+        ? `quote_text.ilike.*${q}*,characters.name.ilike.*${q}*,anime.title.ilike.*${q}*`
+        : "true.is.true"
+    )
+    .limit(Math.min(limit, 50));
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    quote_text: r.quote_text,
+    episode_number: r.episode_number,
+    emotion: r.emotion,
+    view_count: r.view_count,
+    download_count: r.download_count,
+    character: { name: r.characters?.name ?? "Unknown" },
+    anime: { title: r.anime?.title ?? "Unknown" },
+    created_at: r.created_at,
+  })) as QuoteItem[];
 }
 
-/** Random (tries RPC, falls back to client-side pick) */
-export async function randomQuote() {
-  const { data: rpc, error: rpcErr } = await supabase.rpc("random_quote");
-  if (!rpcErr && rpc && rpc.length > 0) return normalizeQuotes(rpc)[0] ?? null;
-
-  const { data } = await supabase
-    .from("quotes")
-    .select("id, quote_text, episode_number, emotion, character, anime")
-    .limit(100);
-  if (!data || data.length === 0) return null;
-  return normalizeQuotes([
-    data[Math.floor(Math.random() * data.length)],
-  ])[0];
+// --- RANDOM (RPC; fast, no full scan) ---
+export async function randomQuote(): Promise<QuoteItem | null> {
+  const { data, error } = await supabase.rpc("random_quote");
+  if (error) throw new Error(error.message);
+  const row = (data as any[])?.[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    quote_text: row.quote_text,
+    episode_number: row.episode_number ?? null,
+    emotion: row.emotion ?? null,
+    view_count: row.view_count ?? 0,
+    download_count: row.download_count ?? 0,
+    character: { name: row.character_name },
+    anime: { title: row.anime_title },
+    created_at: row.created_at,
+  };
 }
 
-/** Favorites */
-export async function toggleFavorite(userId: string, quoteId: string, current: string[]) {
-  const isFav = current.includes(quoteId);
-  if (isFav) {
-    await supabase
-      .from("user_favorites")
-      .delete()
-      .eq("user_id", userId)
-      .eq("quote_id", quoteId);
-    return current.filter((id) => id !== quoteId);
-  } else {
-    await supabase
-      .from("user_favorites")
-      .insert({ user_id: userId, quote_id: quoteId });
-    return [...current, quoteId];
+// --- Favorite toggle ---
+export async function toggleFavorite(userId: string, quoteId: string | number, current: string[]) {
+  const idStr = String(quoteId);
+  if (current.includes(idStr)) {
+    await supabase.from("user_favorites").delete().match({ user_id: userId, quote_id: quoteId });
+    return current.filter((x) => x !== idStr);
   }
+  await supabase.from("user_favorites").insert({ user_id: userId, quote_id: quoteId });
+  return [...current, idStr];
 }
 
-/** Counters (tries RPC atomic increments, falls back to optimistic update) */
-export async function incrementView(quoteId: string) {
-  const { error } = await supabase.rpc("increment_view_count", { qid: quoteId });
-  if (!error) return;
-  // Fallback: non-atomic patch
-  const { data } = await supabase
-    .from("quotes")
-    .select("view_count")
-    .eq("id", quoteId)
-    .limit(1)
-    .maybeSingle();
-  const next = (data?.view_count ?? 0) + 1;
-  await supabase.from("quotes").update({ view_count: next }).eq("id", quoteId);
+// --- Atomic counters (RPC) ---
+export async function incrementView(qid: number) {
+  const { error } = await supabase.rpc("increment_view_count", { qid });
+  if (error) console.error("increment_view_count:", error.message);
+}
+export async function incrementDownload(qid: number) {
+  const { error } = await supabase.rpc("increment_download_count", { qid });
+  if (error) console.error("increment_download_count:", error.message);
 }
 
-export async function incrementDownload(quoteId: string) {
-  const { error } = await supabase.rpc("increment_download_count", { qid: quoteId });
-  if (!error) return;
-  const { data } = await supabase
-    .from("quotes")
-    .select("download_count")
-    .eq("id", quoteId)
-    .limit(1)
-    .maybeSingle();
-  const next = (data?.download_count ?? 0) + 1;
-  await supabase
-    .from("quotes")
-    .update({ download_count: next })
-    .eq("id", quoteId);
-}
-
-/** Daily download limit helpers (works if you create the table/RPCs; else falls back to user_profiles.downloads_today) */
-export async function getDownloadsToday(userId: string) {
+// --- Daily cap (RPC) ---
+export async function getDownloadsToday(userId: string): Promise<number> {
   const { data, error } = await supabase.rpc("get_downloads_today", { user_id: userId });
-  if (!error) return data ?? 0;
-
-  // Fallback to user_profiles column if present
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("downloads_today")
-    .eq("id", userId)
-    .limit(1)
-    .maybeSingle();
-  return profile?.downloads_today ?? 0;
+  if (error) {
+    console.error("get_downloads_today:", error.message);
+    return 0;
+  }
+  return (data as number) ?? 0;
 }
-
 export async function bumpDownloadToday(userId: string) {
   const { error } = await supabase.rpc("bump_download", { user_id: userId });
-  if (!error) return;
-
-  // Fallback to user_profiles column
-  const { data: p } = await supabase
-    .from("user_profiles")
-    .select("downloads_today")
-    .eq("id", userId)
-    .limit(1)
-    .maybeSingle();
-  const next = (p?.downloads_today ?? 0) + 1;
-  await supabase.from("user_profiles").update({ downloads_today: next }).eq("id", userId);
-}
-
-/** Normalizer: keep UI stable (character/anime as simple text) */
-export function normalizeQuotes(rows: any[]) {
-  return (rows ?? []).map((q) => ({
-    ...q,
-    character: { name: q.character ?? "Unknown" },
-    anime: { title: q.anime ?? "Unknown" },
-  }));
+  if (error) console.error("bump_download:", error.message);
 }
