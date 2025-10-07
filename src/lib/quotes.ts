@@ -171,3 +171,12 @@ export async function bumpDownloadToday(userId: string) {
   const { error } = await supabase.rpc("bump_download", { user_id: userId });
   if (error) console.error("bump_download:", error.message);
 }
+export async function incrementDownloadsPerUser(userId: string, qid: number, bgName?: string, fontName?: string) {
+  const { error } = await supabase.rpc("record_download", {
+    p_user_id: userId,
+    p_quote_id: qid,
+    p_background_style: bgName ?? null, // or background.css
+    p_font_style: fontName ?? null,
+  });
+  if (error) console.error("record_download:", error.message);
+}

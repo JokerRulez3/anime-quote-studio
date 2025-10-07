@@ -8,7 +8,8 @@ import { supabase } from "./lib/supabaseClient";
 import {
   getUserSession, loadUserData, loadStats, searchQuotes, randomQuote,
   toggleFavorite as toggleFav, incrementView, incrementDownload,
-  getDownloadsToday, bumpDownloadToday
+  getDownloadsToday, bumpDownloadToday,
+  incrementDownloadsPerUser
 } from "./lib/quotes";
 
 // ==================== CONFIG ====================
@@ -224,8 +225,7 @@ export default function AnimeQuoteStudio() {
     link.click();
 
     // Counters + daily usage
-    await incrementDownload(selectedQuote.id);
-    await bumpDownloadToday(user.id);
+    await incrementDownloadsPerUser(user.id, selectedQuote.id, background.name, font.name);
 
     // refresh stats & profile downloads_today (if your fallback uses that column)
     const s = await loadStats();
