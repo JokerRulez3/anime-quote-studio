@@ -14,20 +14,20 @@ import {
 
 // ==================== CONFIG ====================
 const BACKGROUNDS = [
-  { id: 1, name: "Sunset",  css: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", premium: false },
-  { id: 2, name: "Ocean",   css: "linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)", premium: false },
+  { id: 1, name: "Sunset", css: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", premium: false },
+  { id: 2, name: "Ocean", css: "linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)", premium: false },
   { id: 3, name: "Blossom", css: "linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)", premium: false },
-  { id: 4, name: "Night",   css: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", premium: false },
-  { id: 5, name: "Gold",    css: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", premium: true  },
-  { id: 6, name: "Emerald", css: "linear-gradient(135deg, #134E5E 0%, #71B280 100%)", premium: true  },
-  { id: 7, name: "Fire",    css: "linear-gradient(135deg, #FF512F 0%, #F09819 100%)", premium: true  },
-  { id: 8, name: "Aurora",  css: "linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)", premium: true  },
+  { id: 4, name: "Night", css: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)", premium: false },
+  { id: 5, name: "Gold", css: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", premium: true },
+  { id: 6, name: "Emerald", css: "linear-gradient(135deg, #134E5E 0%, #71B280 100%)", premium: true },
+  { id: 7, name: "Fire", css: "linear-gradient(135deg, #FF512F 0%, #F09819 100%)", premium: true },
+  { id: 8, name: "Aurora", css: "linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)", premium: true },
 ];
 
 const FONTS = [
-  { id: 1, name: "Classic", css: "Georgia, serif",      premium: false },
-  { id: 2, name: "Modern",  css: "Inter, sans-serif",   premium: false },
-  { id: 3, name: "Bold",    css: "Impact, sans-serif",  premium: true  },
+  { id: 1, name: "Classic", css: "Georgia, serif", premium: false },
+  { id: 2, name: "Modern", css: "Inter, sans-serif", premium: false },
+  { id: 3, name: "Bold", css: "Impact, sans-serif", premium: true },
 ];
 
 // ==================== MAIN COMPONENT ====================
@@ -120,7 +120,9 @@ export default function AnimeQuoteStudio() {
     if (q) {
       setSelectedQuote(q);
       setView("generator");
-      await incrementView(q.id);
+      await incrementView(q.id, user?.id);
+      const s = await loadStats();
+      setStats(s);
     }
     setIsLoading(false);
   }
@@ -129,7 +131,9 @@ export default function AnimeQuoteStudio() {
   async function selectQuote(q: any) {
     setSelectedQuote(q);
     setView("generator");
-    await incrementView(q.id);
+    await incrementView(q.id, user?.id);
+    const s = await loadStats();            // <— refresh banner
+    setStats(s);
   }
 
   // ===== Favorite
@@ -579,9 +583,8 @@ export default function AnimeQuoteStudio() {
                   <button
                     key={bg.id}
                     onClick={() => (bg.premium && !isPremium ? setShowPricing(true) : setBackground(bg))}
-                    className={`h-16 rounded-lg border-4 hover:scale-110 transition relative ${
-                      background.id === bg.id ? "border-purple-600" : "border-gray-200"
-                    }`}
+                    className={`h-16 rounded-lg border-4 hover:scale-110 transition relative ${background.id === bg.id ? "border-purple-600" : "border-gray-200"
+                      }`}
                     style={{ background: bg.css }}
                     aria-label={`Background ${bg.name}`}
                   >
@@ -602,9 +605,8 @@ export default function AnimeQuoteStudio() {
                   <button
                     key={f.id}
                     onClick={() => (f.premium && !isPremium ? setShowPricing(true) : setFont(f))}
-                    className={`flex-1 py-3 rounded-lg border-2 transition relative ${
-                      font.id === f.id ? "border-purple-600 bg-purple-50" : "border-gray-200"
-                    }`}
+                    className={`flex-1 py-3 rounded-lg border-2 transition relative ${font.id === f.id ? "border-purple-600 bg-purple-50" : "border-gray-200"
+                      }`}
                     style={{ fontFamily: f.css }}
                     aria-label={`Font ${f.name}`}
                   >

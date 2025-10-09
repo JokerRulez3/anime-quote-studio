@@ -149,10 +149,15 @@ export async function toggleFavorite(userId: string, quoteId: string | number, c
 }
 
 // --- Atomic counters (RPC) ---
-export async function incrementView(qid: number) {
-  const { error } = await supabase.rpc("increment_view_count", { qid });
-  if (error) console.error("increment_view_count:", error.message);
+export async function incrementView(qid: number, userId?: string) {
+  const { error } = await supabase.rpc("record_view", {
+    p_quote_id: qid,
+    p_user_id: userId ?? null,
+    p_referrer: typeof document !== "undefined" ? document.referrer || null : null,
+  });
+  if (error) console.error("record_view:", error.message);
 }
+
 export async function incrementDownload(qid: number) {
   const { error } = await supabase.rpc("increment_download_count", { qid });
   if (error) console.error("increment_download_count:", error.message);
