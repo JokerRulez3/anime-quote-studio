@@ -17,6 +17,11 @@ const EMOTION_LABELS = [
   "sorrow",
   "anger",
   "fear",
+  "sad",
+  "philosophical",
+  "motivational",
+  "epic",
+  "funny"
 ] as const;
 type Emotion = (typeof EMOTION_LABELS)[number];
 
