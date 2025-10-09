@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/emotion-tagger",
+      "schedule": "0 */2 * * *",
+      "headers": {
+        "x-ingest-key": "0dda1ccc93f6e486a04a6d6e6b0388a746ec317874c7c2cad98d09b854e39c98"
+      },
+      "method": "POST"
+    }
+  ]
+}
