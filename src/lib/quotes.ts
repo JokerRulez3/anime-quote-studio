@@ -185,3 +185,17 @@ export async function incrementDownloadsPerUser(userId: string, qid: number, bgN
   });
   if (error) console.error("record_download:", error.message);
 }
+
+/* ---------------------------- PLAN HELPERS ---------------------------- */
+/**
+ * Simple local plan limits (mirrors DB data).
+ * Used by App.tsx for Free/Basic/Pro gating.
+ */
+export function getPlanLimits(profile: any) {
+  const plan = (profile?.plan_key || profile?.subscription_tier || "free").toLowerCase();
+  if (plan === "pro" || plan === "premium")
+    return { key: "pro", daily: Infinity, monthly: Infinity, watermark: "none" };
+  if (plan === "basic")
+    return { key: "basic", daily: 20, monthly: Infinity, watermark: "small" };
+  return { key: "free", daily: 3, monthly: 10, watermark: "full" };
+}
