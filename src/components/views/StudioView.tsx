@@ -82,7 +82,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
   const canDownload = !!selectedQuote;
 
   return (
-    <main className="min-h-[calc(100vh-64px)] bg-[#050816] text-slate-50 pt-24 pb-16">
+    <main className="min-h-[100vh] bg-[#050816] text-slate-50 pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-6">
         {/* Heading */}
         <div className="text-center mb-8">

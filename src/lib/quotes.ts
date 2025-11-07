@@ -53,7 +53,7 @@ export async function loadStats(): Promise<Stats> {
   return { total, views, downloads };
 }
 
-export async function searchQuotes(searchText: string, pageSize = 24, page = 1) {
+export async function searchQuotes(searchText: string | null, pageSize = 24, page = 1) {
   const { data, error } = await supabase.rpc("search_quotes", {
     search_text: searchText || null,
     page,
@@ -99,14 +99,14 @@ export async function randomQuote(): Promise<QuoteItem | null> {
 }
 
 // --- Favorite toggle ---
-export async function toggleFavorite(userId: string, quoteId: string | number, current: string[]) {
+export async function toggleFavorite(userId: string, quoteId: string | number, current: boolean) {
   const idStr = String(quoteId);
-  if (current.includes(idStr)) {
+  if (!current) {
     await supabase.from("user_favorites").delete().match({ user_id: userId, quote_id: quoteId });
-    return current.filter((x) => x !== idStr);
+    return false;
   }
   await supabase.from("user_favorites").insert({ user_id: userId, quote_id: quoteId });
-  return [...current, idStr];
+  return true;
 }
 
 // --- Atomic counters (RPC) ---

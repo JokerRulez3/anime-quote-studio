@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import {
@@ -14,71 +13,128 @@ import {
   incrementDownloadsPerUser,
   getPlanLimits,
 } from "./lib/quotes";
-import { BACKGROUNDS, FONTS, PlanKey, WatermarkLevel } from "./config/ui";
+
+import {
+  BACKGROUNDS,
+  FONTS,
+  PlanKey,
+  WatermarkLevel,
+} from "./config/ui";
+
 import { TopNav } from "./components/layout/TopNav";
-import { AuthModal } from "./components/auth/AuthModal";
 import { LandingView } from "./components/views/LandingView";
 import { SearchView } from "./components/views/SearchView";
 import { StudioView } from "./components/views/StudioView";
 import { PricingView } from "./components/views/PricingView";
+import { AuthModal } from "./components/auth/AuthModal";
 
 type View = "landing" | "search" | "studio" | "pricing";
+
+const PLAN_ORDER: PlanKey[] = ["free", "basic", "pro"];
+const planRank = (p: PlanKey) => PLAN_ORDER.indexOf(p || "free");
 
 export default function App() {
   const [view, setView] = useState<View>("landing");
 
+  // Auth / user
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+
+  // Plan / limits
   const [planKey, setPlanKey] = useState<PlanKey>("free");
   const [dailyLimit, setDailyLimit] = useState<number>(3);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(10);
   const [watermarkLevel, setWatermarkLevel] =
     useState<WatermarkLevel>("full");
 
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [stats, setStats] = useState({ total: 0, downloads: 0, views: 0 });
+  // Global stats
+  const [stats, setStats] = useState({
+    total: 0,
+    views: 0,
+    downloads: 0,
+  });
 
+  // Favorites (IDs as string for consistency with SearchView)
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedQuote, setSelectedQuote] = useState<any>(null);
+  const [activeEmotion, setActiveEmotion] = useState<string | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Studio
+  const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [backgroundId, setBackgroundId] = useState<number>(1);
   const [fontId, setFontId] = useState<number>(2);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  // Auth modal
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(
+    "signin"
+  );
   const [authOpen, setAuthOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Pricing message (e.g. when redirecting from limit)
   const [downloadLimitMsg, setDownloadLimitMsg] =
     useState<string | null>(null);
 
+  // Canvas ref for Studio downloads
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const isPro = planKey === "pro";
-  const isBasic = planKey === "basic";
+  const userHasPlan = !!user && planRank(planKey) >= 0;
+  const dailyLimitLabel = Number.isFinite(dailyLimit)
+    ? `${dailyLimit}/day`
+    : "Unlimited";
 
-  // ---------- Init ----------
+  /* ==================== INIT ==================== */
+
   useEffect(() => {
     (async () => {
+      // Session
       const u = await getUserSession();
       if (u) {
         setUser(u);
-        const { profile: p, favorites: f } = await loadUserData(u.id);
-        setProfile(p);
-        setFavorites(f);
-        const plan = getPlanLimits(p);
-        setPlanKey((plan.key as PlanKey) || "free");
-        setDailyLimit(plan.daily as number);
-        setMonthlyLimit(plan.monthly as number);
-        setWatermarkLevel(plan.watermark as WatermarkLevel);
+        await hydrateUser(u.id);
       }
+
+      // Stats
       const s = await loadStats();
       setStats(s);
     })();
   }, []);
 
-  // ---------- Auth ----------
+  async function hydrateUser(userId: string) {
+    const { profile: p, favorites: favIds } =
+      await loadUserData(userId);
+    setProfile(p || null);
+    setFavorites((favIds || []).map((id: any) => String(id)));
+
+    const limits = getPlanLimits(p);
+    setPlanKey((limits.key || "free") as PlanKey);
+    setDailyLimit(limits.daily ?? 3);
+    setMonthlyLimit(limits.monthly ?? 10);
+    setWatermarkLevel(
+      (limits.watermark || "full") as WatermarkLevel
+    );
+  }
+
+  /* ==================== AUTH ==================== */
+
+  function openAuth(mode: "signin" | "signup") {
+    setAuthMode(mode);
+    setAuthError(null);
+    setAuthOpen(true);
+  }
+
+  function closeAuth() {
+    setAuthOpen(false);
+    setAuthError(null);
+  }
+
   async function handleAuth(
     email: string,
     password: string,
@@ -88,90 +144,130 @@ export default function App() {
     setAuthError(null);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
+      } else {
+        const { error } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+        if (error) throw error;
       }
+
       const { data } = await supabase.auth.getUser();
       const u = data.user;
+      if (!u) throw new Error("No user returned after auth.");
       setUser(u);
-      const { profile: p, favorites: f } = await loadUserData(u!.id);
-      setProfile(p);
-      setFavorites(f);
-      const plan = getPlanLimits(p);
-      setPlanKey((plan.key as PlanKey) || "free");
-      setDailyLimit(plan.daily as number);
-      setMonthlyLimit(plan.monthly as number);
-      setWatermarkLevel(plan.watermark as WatermarkLevel);
+      await hydrateUser(u.id);
       setAuthOpen(false);
-    } catch (e: any) {
-      setAuthError(e.message ?? "Authentication failed");
+    } catch (err: any) {
+      setAuthError(err.message ?? "Authentication failed");
     } finally {
       setIsLoading(false);
     }
   }
 
-  function openAuth(mode: "signin" | "signup") {
-    setAuthMode(mode);
-    setAuthOpen(true);
-    setAuthError(null);
-  }
-
-  function handleSignOut() {
-    supabase.auth.signOut();
+  async function handleSignOut() {
+    await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setFavorites([]);
     setPlanKey("free");
+    setDailyLimit(3);
+    setMonthlyLimit(10);
+    setWatermarkLevel("full");
     setView("landing");
   }
 
-  // ---------- Search ----------
-  async function runTextSearch() {
-    setIsLoading(true);
-    setView("search");
-    const rows = await searchQuotes(searchQuery, 24);
-    setSearchResults(rows || []);
-    setIsLoading(false);
-  }
-
-  async function runEmotionSearch(emotion: string) {
-    setIsLoading(true);
-    setView("search");
-    const rows = await searchQuotesByEmotion(emotion, 24, 1);
-    setSearchResults(rows || []);
-    setIsLoading(false);
-  }
+  /* ==================== SEARCH (TEXT) ==================== */
 
   async function handleSearch() {
-    const q = searchQuery.trim().toLowerCase();
-    const EMOTIONS = [
-      "inspiring",
-      "motivational",
-      "sad",
-      "wholesome",
-      "romantic",
-      "dark",
-      "funny",
-    ];
-    if (EMOTIONS.includes(q as any)) {
-      await runEmotionSearch(q);
-    } else {
-      await runTextSearch();
+    setIsLoading(true);
+    setActiveEmotion(null); // text search stands alone
+    setDownloadLimitMsg(null);
+
+    try {
+      const q = searchQuery.trim();
+      const rows = await searchQuotes(q || null, 1, 24);
+      setSearchResults(rows || []);
+      setView("search");
+    } catch (err) {
+      console.error("searchQuotes failed:", err);
+      setSearchResults([]);
+      setView("search");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  /* ==================== SEARCH (EMOTION-ONLY) ==================== */
+
+  async function handleEmotionFilter(emotion: string) {
+    // emotion from SearchView: "" or specific
+    const normalized =
+      !emotion || emotion === "all"
+        ? null
+        : emotion.toLowerCase();
+
+    setIsLoading(true);
+    setDownloadLimitMsg(null);
+    setSearchQuery(""); // keep emotion-only logic clean
+    setActiveEmotion(normalized);
+
+    try {
+      if (!normalized) {
+        // "All" → clear emotion filter and results (or could show popular)
+        setSearchResults([]);
+      } else {
+        const rows = await searchQuotesByEmotion(
+          normalized,
+          1,
+          24
+        );
+        setSearchResults(rows || []);
+      }
+      setView("search");
+    } catch (err) {
+      console.error("searchQuotesByEmotion failed:", err);
+      setSearchResults([]);
+      setView("search");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  /* ==================== RANDOM, SELECT, FAVORITES ==================== */
+
+  async function handleRandom() {
+    setIsLoading(true);
+    setDownloadLimitMsg(null);
+    try {
+      const q = await randomQuote();
+      if (q) {
+        setSelectedQuote(q);
+        setView("studio");
+        // best-effort view increment
+        incrementView(q.id).catch((e: unknown) =>
+          console.error("incrementView failed:", e)
+        );
+      }
+    } catch (err) {
+      console.error("randomQuote failed:", err);
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function handleSelectQuote(q: any) {
     setSelectedQuote(q);
     setView("studio");
-    await incrementView(q.id, user?.id);
-    const s = await loadStats();
-    setStats(s);
+    incrementView(q.id).catch((e: unknown) =>
+      console.error("incrementView failed:", e)
+    );
   }
 
   async function handleToggleFavorite(id: string) {
@@ -179,102 +275,123 @@ export default function App() {
       openAuth("signin");
       return;
     }
-    const next = await toggleFav(user.id, id, favorites);
-    setFavorites(next);
-  }
-
-  async function handleRandom() {
-    setIsLoading(true);
-    const q = await randomQuote();
-    if (q) {
-      setSelectedQuote(q);
-      setView("studio");
-      await incrementView(q.id, user?.id);
-      const s = await loadStats();
-      setStats(s);
+    try {
+      const isFav = favorites.includes(id);
+      await toggleFav(user.id, id, !isFav);
+      setFavorites((prev) =>
+        isFav ? prev.filter((f) => f !== id) : [...prev, id]
+      );
+    } catch (err) {
+      console.error("toggleFavorite failed:", err);
     }
-    setIsLoading(false);
   }
 
-  // ---------- Download ----------
-  function renderWatermark(ctx: CanvasRenderingContext2D) {
+  /* ==================== STUDIO / DOWNLOAD ==================== */
+
+  function getCurrentBgAndFont() {
+    const bg =
+      BACKGROUNDS.find((b) => b.id === backgroundId) ??
+      BACKGROUNDS[0];
+    const font =
+      FONTS.find((f) => f.id === fontId) ?? FONTS[0];
+    return { bg, font };
+  }
+
+  function renderWatermark(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number
+  ) {
     if (watermarkLevel === "none") return;
 
-    if (watermarkLevel === "small") {
-      ctx.save();
-      ctx.globalAlpha = 0.8;
-      ctx.font = "bold 18px Inter";
-      ctx.fillStyle = "white";
-      ctx.textAlign = "right";
-      ctx.fillText("AnimeQuoteStudio.com", 1180, 610);
-      ctx.restore();
-      return;
-    }
-
     ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.translate(600, 315);
-    ctx.rotate(-Math.PI / 6);
-    ctx.font = "bold 64px Inter";
-    ctx.fillStyle = "white";
     ctx.textAlign = "center";
-    ctx.fillText("AnimeQuoteStudio.com", 0, 0);
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.font =
+      watermarkLevel === "small"
+        ? "600 22px Inter"
+        : "600 40px Inter";
+
+    if (watermarkLevel === "small") {
+      ctx.fillText(
+        "AnimeQuoteStudio.com",
+        width - 180,
+        height - 36
+      );
+    } else {
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(-Math.PI / 5);
+      ctx.fillText("AnimeQuoteStudio.com", 0, 0);
+    }
     ctx.restore();
   }
 
   async function handleDownload() {
+    if (!selectedQuote) return;
     if (!user) {
       openAuth("signin");
       return;
     }
-    if (!selectedQuote) return;
 
-    const todayCount = await getDownloadsToday(user.id);
-    if (Number.isFinite(dailyLimit) && todayCount >= dailyLimit) {
-      setDownloadLimitMsg(
-        isBasic
-          ? "Daily limit reached (20/day). Upgrade to Pro for unlimited!"
-          : "Daily limit reached (3/day). Upgrade to Basic/Pro!"
-      );
-      setView("pricing");
-      return;
+    // Check daily limit
+    try {
+      const today = await getDownloadsToday(user.id);
+      if (
+        Number.isFinite(dailyLimit) &&
+        today >= (dailyLimit as number)
+      ) {
+        setDownloadLimitMsg(
+          "Daily download limit reached for your plan. Upgrade to unlock more."
+        );
+        setView("pricing");
+        return;
+      }
+    } catch (err) {
+      console.error("getDownloadsToday failed:", err);
+      // fail-open: still allow download
     }
 
-    const bg =
-      BACKGROUNDS.find((b) => b.id === backgroundId) ?? BACKGROUNDS[0];
-    const font =
-      FONTS.find((f) => f.id === fontId) ?? FONTS[1];
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext("2d")!;
-    canvas.width = 1200;
-    canvas.height = 630;
+    const { bg, font } = getCurrentBgAndFont();
+    const width = 1200;
+    const height = 630;
+    canvas.width = width;
+    canvas.height = height;
 
-    const grad = ctx.createLinearGradient(0, 0, 1200, 630);
-    const hexes = bg.css.match(/#[0-9a-f]{6}/gi) ?? ["#020817", "#020817"];
+    // Background gradient or css
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    const hexes =
+      bg.css.match(/#[0-9a-f]{6}/gi) ?? ["#111827", "#020817"];
     grad.addColorStop(0, hexes[0]);
     grad.addColorStop(1, hexes[1]);
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1200, 630);
+    ctx.fillRect(0, 0, width, height);
 
-    const marginX = 120;
-    const maxWidth = 1200 - marginX * 2;
-    let size = 56;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "white";
-    ctx.shadowColor = "rgba(5,8,22,0.95)";
-    ctx.shadowBlur = 18;
-
+    const quoteText = selectedQuote.quote_text || "";
     const charName =
-      selectedQuote?.character?.name ??
-      selectedQuote?.character_name ??
+      selectedQuote.character?.name ||
+      selectedQuote.character_name ||
       "";
     const animeTitle =
-      selectedQuote?.anime?.title ??
-      selectedQuote?.anime_title ??
+      selectedQuote.anime?.title ||
+      selectedQuote.anime_title ||
       "";
 
-    function linesFor(text: string, fontSize: number) {
+    const marginX = 120;
+    const maxWidth = width - marginX * 2;
+    let size = 56;
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "white";
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 18;
+
+    function measureLines(text: string, fontSize: number) {
+      if (!ctx) return [];
       ctx.font = `600 ${fontSize}px ${font.css}`;
       const words = text.split(" ");
       const lines: string[] = [];
@@ -292,76 +409,69 @@ export default function App() {
       return lines;
     }
 
-    let lines = linesFor(`"${selectedQuote.quote_text}"`, size);
+    let lines = measureLines(`"${quoteText}"`, size);
     while (lines.length > 4 && size > 26) {
       size -= 2;
-      lines = linesFor(`"${selectedQuote.quote_text}"`, size);
+      lines = measureLines(`"${quoteText}"`, size);
     }
 
     const startY = 210 - ((lines.length - 1) * (size + 14)) / 2;
     lines.forEach((ln, i) => {
       ctx.font = `600 ${size}px ${font.css}`;
-      ctx.fillText(ln, 600, startY + i * (size + 14));
+      ctx.fillText(ln, width / 2, startY + i * (size + 14));
     });
 
     if (charName) {
-      ctx.shadowBlur = 12;
-      ctx.font = `600 26px Inter`;
+      ctx.font = "600 26px Inter";
       ctx.fillText(
         `— ${charName}`,
-        600,
+        width / 2,
         startY + lines.length * (size + 14) + 56
       );
     }
+
     if (animeTitle) {
-      ctx.font = `400 22px Inter`;
+      ctx.font = "400 22px Inter";
       ctx.fillText(
         animeTitle,
-        600,
+        width / 2,
         startY + lines.length * (size + 14) + 92
       );
     }
 
-    renderWatermark(ctx);
+    renderWatermark(ctx, width, height);
 
     const link = document.createElement("a");
     link.download = `quote-${selectedQuote.id}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
 
-    await incrementDownloadsPerUser(
-      user.id,
-      selectedQuote.id,
-      bg.name,
-      font.name
-    );
-    const s = await loadStats();
-    setStats(s);
-  }
-
-  // ---------- Nav handlers for TopNav ----------
-  function goLanding() {
-    setView("landing");
-  }
-
-  function goSearch() {
-    setView("search");
-  }
-
-  async function goStudio() {
-    if (selectedQuote) {
-      setView("studio");
-      return;
+    try {
+      await incrementDownloadsPerUser(
+        user.id,
+        selectedQuote.id,
+        bg.name,
+        font.name
+      );
+      const s = await loadStats();
+      setStats(s);
+    } catch (err) {
+      console.error("incrementDownloadsPerUser failed:", err);
     }
-    // If no selected quote yet, pull a random so Studio isn't empty
-    await handleRandom();
   }
 
-  function goPricing() {
-    setView("pricing");
-  }
+  /* ==================== NAV HELPERS ==================== */
 
-  // ---------- Render ----------
+  const goLanding = () => setView("landing");
+  const goSearch = () => setView("search");
+  const goStudio = () => {
+    if (selectedQuote) setView("studio");
+    else handleRandom();
+  };
+  const goPricing = () => setView("pricing");
+
+  /* ==================== RENDER ==================== */
+
   return (
     <>
       <TopNav
@@ -392,9 +502,10 @@ export default function App() {
       {view === "search" && (
         <SearchView
           searchQuery={searchQuery}
+          activeEmotion={activeEmotion}
           onSearchQueryChange={setSearchQuery}
           onRunSearch={handleSearch}
-          onEmotionFilter={runEmotionSearch}
+          onEmotionFilter={handleEmotionFilter}
           isLoading={isLoading}
           results={searchResults}
           favorites={favorites}
@@ -411,10 +522,8 @@ export default function App() {
           fontId={fontId}
           planKey={planKey}
           watermarkLevel={watermarkLevel}
-          dailyLimitLabel={
-            Number.isFinite(dailyLimit) ? `${dailyLimit}/day` : "Unlimited"
-          }
-          userHasPlan={!!user}
+          dailyLimitLabel={dailyLimitLabel}
+          userHasPlan={userHasPlan}
           onSelectBackground={setBackgroundId}
           onSelectFont={setFontId}
           onDownload={handleDownload}
@@ -438,11 +547,9 @@ export default function App() {
         error={authError}
         onSubmit={handleAuth}
         onSwitch={() =>
-          setAuthMode((prev) =>
-            prev === "signin" ? "signup" : "signin"
-          )
+          setAuthMode((m) => (m === "signin" ? "signup" : "signin"))
         }
-        onClose={() => setAuthOpen(false)}
+        onClose={closeAuth}
       />
     </>
   );

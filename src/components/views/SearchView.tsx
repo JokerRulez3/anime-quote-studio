@@ -1,11 +1,12 @@
 // src/components/views/SearchView.tsx
 import React from "react";
 import { Loader, Search, Shuffle } from "lucide-react";
-import { EMOTIONS } from "../../config/ui";
-import { QuoteCard } from "../shared/QuoteCard";
+import { EMOTIONS } from "../../config/ui"; // adjust path if needed
+import { QuoteCard } from "../shared/QuoteCard"; // adjust path if needed
 
 interface SearchViewProps {
   searchQuery: string;
+  activeEmotion: string | null;
   onSearchQueryChange: (value: string) => void;
   onRunSearch: () => void;
   onEmotionFilter: (emotion: string) => void;
@@ -19,6 +20,7 @@ interface SearchViewProps {
 
 export const SearchView: React.FC<SearchViewProps> = ({
   searchQuery,
+  activeEmotion,
   onSearchQueryChange,
   onRunSearch,
   onEmotionFilter,
@@ -29,6 +31,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
   onSelectQuote,
   onRandom,
 }) => {
+  const hasResults = results.length > 0;
+
   return (
     <main className="min-h-[calc(100vh-64px)] bg-[#050816] text-slate-50 pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-6">
@@ -65,17 +69,23 @@ export const SearchView: React.FC<SearchViewProps> = ({
           <div className="flex flex-wrap gap-2 mt-1 text-[12px]">
             {["all", ...EMOTIONS].map((emotion) => {
               const isAll = emotion === "all";
-              const label = isAll ? "All" : emotion.charAt(0).toUpperCase() + emotion.slice(1);
-              const isActive = false; // (replace with your actual active state if you have one)
+              const value = isAll ? "" : emotion;
+              const label = isAll
+                ? "All"
+                : emotion.charAt(0).toUpperCase() + emotion.slice(1);
+              const isActive =
+                (value === "" && !activeEmotion) ||
+                (value && activeEmotion === value.toLowerCase());
 
               return (
                 <button
                   key={emotion}
-                  onClick={() => onEmotionFilter(isAll ? "" : emotion)}
-                  className={`px-4 py-1.5 rounded-full font-medium capitalize transition-all duration-200 border 
-          ${isActive
-                      ? "bg-sky-500 text-white border-sky-500 shadow-[0_0_10px_rgba(56,189,248,0.4)]"
-                      : "bg-[#0b1020] border-slate-800 text-slate-300 hover:text-white hover:border-sky-500 hover:bg-sky-500/10"
+                  onClick={() => onEmotionFilter(value || "all")}
+                  className={`px-4 py-1.5 rounded-full font-medium capitalize transition-all duration-200 border
+                    ${
+                      isActive
+                        ? "bg-sky-500 text-white border-sky-500 shadow-[0_0_10px_rgba(56,189,248,0.4)]"
+                        : "bg-[#0b1020] border-slate-800 text-slate-300 hover:text-white hover:border-sky-500 hover:bg-sky-500/10"
                     }`}
                 >
                   {label}
@@ -94,7 +104,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </div>
         </div>
 
-        {/* Results */}
+        {/* Results / states */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader
@@ -105,17 +115,15 @@ export const SearchView: React.FC<SearchViewProps> = ({
               Searching quotes...
             </p>
           </div>
-        ) : results.length === 0 ? (
+        ) : !hasResults ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-slate-400 text-sm mb-2">
               No results yet.
             </p>
             <p className="text-slate-500 text-xs max-w-md">
-              Try a character name (e.g.{" "}
-              <span className="text-slate-300">Luffy</span>), anime
-              title (<span className="text-slate-300">Naruto</span>), or
-              a word from the quote you remember. You can also tap an
-              emotion tag above.
+              Try a character name (<span className="text-slate-300">Luffy</span>),
+              anime title (<span className="text-slate-300">Naruto</span>), or a word from
+              the quote. Or tap an emotion tag above to filter by vibe.
             </p>
           </div>
         ) : (
@@ -125,7 +133,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 key={q.id}
                 quote={q}
                 isFavorite={favorites.includes(String(q.id))}
-                onToggleFavorite={() => onToggleFavorite(String(q.id))}
+                onToggleFavorite={() =>
+                  onToggleFavorite(String(q.id))
+                }
                 onSelect={() => onSelectQuote(q)}
               />
             ))}
