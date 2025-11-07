@@ -225,8 +225,8 @@ export default function App() {
       } else {
         const rows = await searchQuotesByEmotion(
           normalized,
-          1,
-          24
+          25,
+          1
         );
         setSearchResults(rows || []);
       }
