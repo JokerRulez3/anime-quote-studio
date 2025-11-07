@@ -18,13 +18,28 @@ interface StudioViewProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
-const PLAN_ORDER: PlanKey[] = ["free", "basic", "pro"];
-const planRank = (p: PlanKey) => PLAN_ORDER.indexOf(p || "free");
-
-function isLockedForPlan(itemMin: PlanKey | undefined, userPlan: PlanKey) {
-  if (!itemMin) return false;
-  return planRank(userPlan) < planRank(itemMin);
+/**
+ * Simple deterministic gating based on index:
+ * - Backgrounds: [0,1]=free, [2,3]=basic, [4+]=pro
+ * - Fonts: [0]=free, [1]=basic, [2+]=pro
+ * This avoids depending on extra fields in BACKGROUNDS/FONTS.
+ */
+function requiredPlanForBackground(index: number): PlanKey {
+  if (index <= 1) return "free";
+  if (index <= 3) return "basic";
+  return "pro";
 }
+
+function requiredPlanForFont(index: number): PlanKey {
+  if (index === 0) return "free";
+  if (index === 1) return "basic";
+  return "pro";
+}
+
+const PLAN_ORDER: PlanKey[] = ["free", "basic", "pro"];
+const rank = (p: PlanKey) => PLAN_ORDER.indexOf(p || "free");
+const isLocked = (required: PlanKey, user: PlanKey) =>
+  rank(user) < rank(required);
 
 export const StudioView: React.FC<StudioViewProps> = ({
   selectedQuote,
@@ -47,7 +62,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
   const quoteText =
     selectedQuote?.quote_text ??
-    "Select a quote from Search or hit Random to start designing.";
+    "Select a quote from Search or tap Random to start designing.";
   const characterName =
     selectedQuote?.character?.name ??
     selectedQuote?.character_name ??
@@ -80,9 +95,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
           </p>
         </div>
 
-        {/* Layout */}
+        {/* Layout: Preview + Controls */}
         <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)] gap-8 items-start">
-          {/* Left: Preview */}
+          {/* LEFT: Preview */}
           <div className="flex justify-center">
             <div className="relative w-full max-w-[720px] aspect-[1200/630] rounded-3xl bg-[#020817] shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden">
               {/* Gradient background */}
@@ -91,7 +106,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 style={{ background: bg.css }}
               />
 
-              {/* Quote text */}
+              {/* Content */}
               <div className="relative h-full px-14 py-16 flex flex-col items-center justify-center text-center">
                 <p
                   className="text-slate-50 font-semibold leading-relaxed mb-8"
@@ -118,7 +133,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   </div>
                 )}
 
-                {/* Watermark preview */}
+                {/* Watermark preview for non-Pro */}
                 {planKey !== "pro" && (
                   <div className="absolute right-6 bottom-4 text-[9px] text-slate-300/65">
                     AnimeQuoteStudio.com
@@ -128,35 +143,29 @@ export const StudioView: React.FC<StudioViewProps> = ({
             </div>
           </div>
 
-          {/* Hidden canvas for real export */}
-          <canvas
-            ref={canvasRef}
-            className="hidden"
-            aria-hidden="true"
-          />
+          {/* Hidden canvas (used for real export) */}
+          <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
-          {/* Right: Controls */}
-          <aside className="space-y-6 bg-[#050816]">
-            {/* Backgrounds */}
+          {/* RIGHT: Controls */}
+          <aside className="space-y-6">
+            {/* BACKGROUNDS */}
             <div>
               <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-sm font-semibold text-slate-200">
+                <h2 className="text-sm md:text-base font-semibold text-slate-200">
                   Background
                 </h2>
                 <p className="text-[10px] text-slate-500">
                   {planKey === "pro"
                     ? "All unlocked"
                     : planKey === "basic"
-                    ? "More styles with Pro"
+                    ? "Basic + Free"
                     : "2 / 8 unlocked"}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {BACKGROUNDS.map((b) => {
-                  const locked = isLockedForPlan(
-                    (b as any).minPlan,
-                    planKey
-                  );
+                {BACKGROUNDS.map((b, idx) => {
+                  const required = requiredPlanForBackground(idx);
+                  const locked = isLocked(required, planKey);
                   const active = b.id === bg.id;
 
                   return (
@@ -165,22 +174,27 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       onClick={() =>
                         !locked && onSelectBackground(b.id)
                       }
-                      className={`relative h-14 rounded-2xl border transition-all overflow-hidden ${
-                        active
-                          ? "border-sky-500 shadow-[0_0_18px_rgba(56,189,248,0.4)]"
-                          : "border-slate-800 hover:border-sky-500/70 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)]"
-                      } ${locked ? "opacity-55 cursor-not-allowed" : ""}`}
+                      className={`relative h-14 rounded-2xl border transition-all overflow-hidden flex items-end px-2 pb-1.5
+                        ${
+                          active
+                            ? "border-sky-500 shadow-[0_0_18px_rgba(56,189,248,0.4)]"
+                            : "border-slate-800 hover:border-sky-500/70 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)]"
+                        }
+                        ${
+                          locked
+                            ? "opacity-55 cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
                       style={{ background: b.css }}
                     >
-                      <div className="absolute inset-0 bg-black/10" />
-                      <span className="relative z-10 text-[10px] font-medium text-slate-50 px-2 py-1">
+                      <span className="relative z-10 text-[11px] font-medium text-slate-50 drop-shadow">
                         {b.name}
                       </span>
                       {locked && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/55 text-[9px] text-slate-200">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 text-[9px] text-slate-100">
                             <Lock size={10} />
-                            Pro
+                            {required === "pro" ? "Pro" : "Basic"}
                           </div>
                         </div>
                       )}
@@ -190,38 +204,40 @@ export const StudioView: React.FC<StudioViewProps> = ({
               </div>
             </div>
 
-            {/* Fonts */}
+            {/* FONTS */}
             <div>
               <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-sm font-semibold text-slate-200">
+                <h2 className="text-sm md:text-base font-semibold text-slate-200">
                   Font
                 </h2>
                 <p className="text-[10px] text-slate-500">
-                  {planKey === "pro"
-                    ? "All fonts unlocked"
-                    : "Premium faces with Pro"}
+                  Premium faces with Pro
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {FONTS.map((f) => {
-                  const locked = isLockedForPlan(
-                    (f as any).minPlan,
-                    planKey
-                  );
+                {FONTS.map((f, idx) => {
+                  const required = requiredPlanForFont(idx);
+                  const locked = isLocked(required, planKey);
                   const active = f.id === font.id;
 
                   return (
                     <button
                       key={f.id}
                       onClick={() => !locked && onSelectFont(f.id)}
-                      className={`relative px-3 py-3 rounded-2xl border text-left transition-all ${
-                        active
-                          ? "border-sky-500 bg-[#0f172a] shadow-[0_0_16px_rgba(56,189,248,0.35)]"
-                          : "border-slate-800 bg-[#050816] hover:border-sky-500/70 hover:bg-[#060b18]"
-                      } ${locked ? "opacity-55 cursor-not-allowed" : ""}`}
+                      className={`relative px-3 py-3 rounded-2xl border text-left transition-all
+                        ${
+                          active
+                            ? "border-sky-500 bg-[#0f172a] shadow-[0_0_16px_rgba(56,189,248,0.35)]"
+                            : "border-slate-800 bg-[#050816] hover:border-sky-500/70 hover:bg-[#060b18]"
+                        }
+                        ${
+                          locked
+                            ? "opacity-55 cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
                     >
                       <div
-                        className="text-xs text-slate-100 truncate"
+                        className="text-[12px] text-slate-100 truncate"
                         style={{ fontFamily: f.css }}
                       >
                         {f.name}
@@ -240,27 +256,29 @@ export const StudioView: React.FC<StudioViewProps> = ({
               </div>
             </div>
 
-            {/* Download CTA */}
+            {/* DOWNLOAD CTA */}
             <div className="space-y-2 pt-2">
               <button
                 onClick={canDownload ? onDownload : undefined}
                 disabled={!canDownload}
-                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all ${
-                  canDownload
-                    ? "bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-[0_16px_40px_rgba(56,189,248,0.35)]"
-                    : "bg-slate-800 text-slate-500 cursor-not-allowed"
-                }`}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all
+                  ${
+                    canDownload
+                      ? "bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-[0_16px_40px_rgba(56,189,248,0.35)]"
+                      : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  }`}
               >
                 <Download size={18} />
                 Download PNG
               </button>
+
               <p className="text-[10px] text-slate-500">
                 {dailyLimitLabel === "Unlimited" ? (
                   <>Unlimited downloads on your plan.</>
                 ) : (
                   <>
-                    {dailyLimitLabel} downloads remaining today
-                    (per plan rules).
+                    {dailyLimitLabel} downloads remaining today (per plan
+                    rules).
                   </>
                 )}
                 {watermarkLabel && (
@@ -284,6 +302,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   with Pro →
                 </button>
               )}
+
               {!userHasPlan && (
                 <p className="text-[9px] text-slate-500">
                   Log in or sign up to track your downloads and save your
@@ -294,12 +313,12 @@ export const StudioView: React.FC<StudioViewProps> = ({
           </aside>
         </div>
 
-        {/* If no quote selected, hint */}
+        {/* Empty-state hint */}
         {!selectedQuote && (
           <div className="mt-10 text-center text-xs text-slate-500">
             Tip: start from the{" "}
             <span className="text-sky-400 font-medium">Search</span>{" "}
-            page or hit{" "}
+            page or use{" "}
             <span className="text-sky-400 font-medium">
               Random
             </span>{" "}
