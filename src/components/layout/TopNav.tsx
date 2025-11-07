@@ -113,7 +113,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               </button>
               <button
                 onClick={onSignUp}
-                className="px-3.5 py-1.5 rounded-full bg-sky-500 text-slate-950 text-[10px] font-semibold hover:bg-sky-400"
+                className="px-3.5 py-1.5 rounded-full text-sm bg-sky-500 text-slate-950 font-semibold hover:bg-sky-400"
               >
                 Sign Up
               </button>

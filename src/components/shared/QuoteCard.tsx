@@ -17,15 +17,18 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
 }) => {
   const character =
     quote?.character?.name ?? quote?.character_name ?? "";
-  const anime = quote?.anime?.title ?? quote?.anime_title ?? "";
+  const anime =
+    quote?.anime?.title ?? quote?.anime_title ?? "";
+  const ep = quote?.episode_number;
 
   return (
     <article
-      className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2 hover:border-indigo-500/70 hover:-translate-y-0.5 hover:shadow-xl transition cursor-pointer"
       onClick={onSelect}
+      className="group bg-[#0b1020] border border-slate-800/90 hover:border-sky-500/70 rounded-2xl px-6 py-5 flex flex-col gap-2 cursor-pointer transition-colors transition-transform hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(5,8,22,0.85)]"
     >
-      <div className="flex justify-between items-start gap-3">
-        <p className="text-sm text-slate-100 leading-relaxed">
+      {/* Top row: quote + heart */}
+      <div className="flex items-start gap-3">
+        <p className="flex-1 text-[15px] leading-relaxed text-slate-100">
           “{quote.quote_text}”
         </p>
         <button
@@ -33,40 +36,38 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
             e.stopPropagation();
             onToggleFavorite();
           }}
-          className={
+          className={`mt-1 p-1 rounded-full transition-colors ${
             isFavorite
               ? "text-rose-400"
               : "text-slate-500 hover:text-rose-400"
-          }
+          }`}
         >
           <Heart
             size={18}
+            className="transition-transform group-hover:scale-110"
             fill={isFavorite ? "currentColor" : "none"}
           />
         </button>
       </div>
-      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
-        <div>
+
+      {/* Bottom row: meta */}
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5 text-[11px] leading-snug">
           {character && (
-            <span className="text-indigo-300 font-medium">
+            <span className="text-sky-400 font-semibold group-hover:text-sky-300">
               {character}
             </span>
           )}
-          {anime && (
-            <>
-              {character && <span className="text-slate-600"> • </span>}
-              <span>{anime}</span>
-            </>
-          )}
-          {quote.episode_number && (
-            <span className="text-slate-600">
-              {" "}
-              • Ep {quote.episode_number}
+          {(anime || ep) && (
+            <span className="text-slate-500">
+              {anime && <>{anime}</>}
+              {anime && ep && <span className="mx-1 text-slate-600">•</span>}
+              {ep && <>Ep {ep}</>}
             </span>
           )}
         </div>
         {quote.emotion && (
-          <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[9px] text-slate-400">
+          <span className="ml-auto px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[9px] uppercase tracking-wide text-slate-400">
             {quote.emotion}
           </span>
         )}
