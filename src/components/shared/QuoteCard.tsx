@@ -1,4 +1,3 @@
-// src/components/shared/QuoteCard.tsx
 import React from "react";
 import { Heart } from "lucide-react";
 
@@ -15,63 +14,57 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
   onToggleFavorite,
   onSelect,
 }) => {
-  const character =
-    quote?.character?.name ?? quote?.character_name ?? "";
-  const anime =
-    quote?.anime?.title ?? quote?.anime_title ?? "";
-  const ep = quote?.episode_number;
+  const charName = quote.character?.name ?? "Unknown";
+  const animeTitle = quote.anime?.title ?? "Unknown Anime";
+  const emotion = quote.emotion ?? "";
+  const episode = quote.episode_number ? `Ep ${quote.episode_number}` : "";
 
   return (
-    <article
+    <div
       onClick={onSelect}
-      className="group bg-[#0b1020] border border-slate-800/90 hover:border-sky-500/70 rounded-2xl px-6 py-5 flex flex-col gap-2 cursor-pointer transition-colors transition-transform hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(5,8,22,0.85)]"
+      className="group relative flex flex-col justify-between rounded-2xl bg-[#0b1020] border border-slate-800 hover:border-sky-600/60 hover:bg-[#0f172a] transition-all p-6 cursor-pointer shadow-[0_8px_25px_rgba(0,0,0,0.25)]"
     >
-      {/* Top row: quote + heart */}
-      <div className="flex items-start gap-3">
-        <p className="flex-1 text-[15px] leading-relaxed text-slate-100">
-          “{quote.quote_text}”
-        </p>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite();
-          }}
-          className={`mt-1 p-1 rounded-full transition-colors ${
-            isFavorite
-              ? "text-rose-400"
-              : "text-slate-500 hover:text-rose-400"
-          }`}
-        >
-          <Heart
-            size={18}
-            className="transition-transform group-hover:scale-110"
-            fill={isFavorite ? "currentColor" : "none"}
-          />
-        </button>
+      {/* Quote Text */}
+      <p className="text-slate-100 text-base md:text-lg leading-relaxed mb-5 font-medium">
+        “{quote.quote_text}”
+      </p>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between text-xs md:text-sm text-slate-400">
+        <div className="flex flex-col">
+          <span className="text-sky-400 font-medium">{charName}</span>
+          <span className="text-slate-500 text-[11px] md:text-xs">
+            {animeTitle} {episode && <>&nbsp;•&nbsp;{episode}</>}
+          </span>
+        </div>
+
+        {/* Right side: emotion tag + favorite */}
+        <div className="flex items-center gap-2">
+          {emotion && (
+            <span className="px-2.5 py-1 rounded-full bg-slate-900 text-[11px] text-slate-300 border border-slate-700">
+              {emotion}
+            </span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite();
+            }}
+            className="p-1 rounded-full hover:bg-slate-800 transition-colors"
+            aria-label="Toggle favorite"
+          >
+            <Heart
+              size={16}
+              className={`transition-colors ${
+                isFavorite ? "fill-sky-400 text-sky-400" : "text-slate-400"
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
-      {/* Bottom row: meta */}
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5 text-[11px] leading-snug">
-          {character && (
-            <span className="text-sky-400 font-semibold group-hover:text-sky-300">
-              {character}
-            </span>
-          )}
-          {(anime || ep) && (
-            <span className="text-slate-500">
-              {anime && <>{anime}</>}
-              {anime && ep && <span className="mx-1 text-slate-600">•</span>}
-              {ep && <>Ep {ep}</>}
-            </span>
-          )}
-        </div>
-        {quote.emotion && (
-          <span className="ml-auto px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-[9px] uppercase tracking-wide text-slate-400">
-            {quote.emotion}
-          </span>
-        )}
-      </div>
-    </article>
+      {/* Hover Glow */}
+      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-10 transition bg-gradient-to-br from-sky-500 via-purple-500 to-indigo-500 pointer-events-none" />
+    </div>
   );
 };
