@@ -34,7 +34,7 @@ import {
 const BACKGROUNDS = [
   { id: 1, name: "Sunset", css: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)" },
   { id: 2, name: "Ocean", css: "linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%)" },
-  { id: 3, name: "Blossom", css: "linear-gradient(135deg, #f97316 0%, #f97316 40%, #ec4899 100%)" },
+  { id: 3, name: "Blossom", css: "linear-gradient(135deg, #f97316 0%, #ec4899 100%)" },
   { id: 4, name: "Night", css: "linear-gradient(135deg, #020817 0%, #111827 100%)" },
   { id: 5, name: "Gold", css: "linear-gradient(135deg, #facc15 0%, #f97316 100%)" },
   { id: 6, name: "Emerald", css: "linear-gradient(135deg, #065f46 0%, #22c55e 100%)" },
@@ -44,19 +44,15 @@ const BACKGROUNDS = [
 
 const FONTS = [
   { id: 1, name: "Classic", css: "Georgia, serif" },
-  { id: 2, name: "Modern", css: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" },
+  {
+    id: 2,
+    name: "Modern",
+    css: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+  },
   { id: 3, name: "Bold", css: "Impact, system-ui, sans-serif" },
 ];
 
-const EMOTIONS = [
-  "inspiring",
-  "motivational",
-  "sad",
-  "wholesome",
-  "romantic",
-  "dark",
-  "funny",
-];
+const EMOTIONS = ["inspiring", "motivational", "sad", "wholesome", "romantic", "dark", "funny"];
 
 /* ==================== MAIN ==================== */
 
@@ -75,7 +71,7 @@ export default function App() {
 
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [background, setBackground] = useState(BACKGROUNDS[0]);
-  const [font, setFont] = useState(FONTS[1]); // default to modern
+  const [font, setFont] = useState(FONTS[1]); // modern default
 
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -91,7 +87,7 @@ export default function App() {
 
   const isPro = planKey === "pro";
   const isBasic = planKey === "basic";
-  const isPremium = isPro; // backward compat alias
+  const isPremium = isPro; // alias for old checks
 
   // Gating
   const allowedBgCount = isPro ? BACKGROUNDS.length : isBasic ? 4 : 2;
@@ -166,7 +162,7 @@ export default function App() {
     setIsLoading(true);
     setView("search");
     const rows = await searchQuotes(q, 24);
-    setSearchResults(rows);
+    setSearchResults(rows || []);
     setIsLoading(false);
   }
 
@@ -250,7 +246,6 @@ export default function App() {
     canvas.width = 1200;
     canvas.height = 630;
 
-    // Background
     const grad = ctx.createLinearGradient(0, 0, 1200, 630);
     const hexes = background.css.match(/#[0-9a-f]{6}/gi) ?? ["#4f46e5", "#6366f1"];
     grad.addColorStop(0, hexes[0]);
@@ -258,11 +253,13 @@ export default function App() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1200, 630);
 
-    // Quote text with dynamic sizing
+    const charName = getCharacterName(selectedQuote);
+    const animeTitle = getAnimeTitle(selectedQuote);
+
+    // Quote text
     const marginX = 120;
     const maxWidth = 1200 - marginX * 2;
     let size = 56;
-
     ctx.textAlign = "center";
     ctx.fillStyle = "white";
     ctx.shadowColor = "rgba(15,23,42,0.9)";
@@ -297,19 +294,19 @@ export default function App() {
     });
 
     // Attribution
-    ctx.shadowBlur = 10;
-    ctx.font = `600 26px Inter`;
-    ctx.fillText(
-      `— ${selectedQuote.character.name}`,
-      600,
-      startY + lines.length * (size + 14) + 56
-    );
-    ctx.font = `400 22px Inter`;
-    ctx.fillText(
-      `${selectedQuote.anime.title}`,
-      600,
-      startY + lines.length * (size + 14) + 92
-    );
+    if (charName) {
+      ctx.shadowBlur = 10;
+      ctx.font = `600 26px Inter`;
+      ctx.fillText(`— ${charName}`, 600, startY + lines.length * (size + 14) + 56);
+    }
+    if (animeTitle) {
+      ctx.font = `400 22px Inter`;
+      ctx.fillText(
+        animeTitle,
+        600,
+        startY + lines.length * (size + 14) + 92
+      );
+    }
 
     renderWatermark(ctx);
 
@@ -401,7 +398,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setShowPricing(false)}
-              className="text-xs px-3 py-2 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
+              className="text-xs px-3 py-2 rounded-lg bg-slate-900 text-slate-200 hover:bg-slate-800"
             >
               ← Back
             </button>
@@ -597,23 +594,23 @@ export default function App() {
               <Search size={22} className="text-indigo-400" />
               <h3 className="font-semibold text-slate-100">Search</h3>
               <p className="text-slate-400">
-                Find quotes by anime, character, or emotion like{" "}
-                <span className="text-slate-200">“inspiring”</span> or{" "}
-                <span className="text-slate-200">“sad”</span>.
+                Find quotes by anime, character, or emotion like
+                {" "}
+                <span className="text-slate-200">“motivational”</span>.
               </p>
             </div>
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2">
               <Sparkles size={22} className="text-indigo-400" />
               <h3 className="font-semibold text-slate-100">Customize</h3>
               <p className="text-slate-400">
-                On-brand gradients & font pairing, gated by your plan to keep things simple.
+                Clean gradients & fonts, with more styles unlocked as you upgrade.
               </p>
             </div>
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2">
               <Download size={22} className="text-indigo-400" />
               <h3 className="font-semibold text-slate-100">Share</h3>
               <p className="text-slate-400">
-                One-tap PNG downloads optimized for Twitter, IG, TikTok & more.
+                Export-ready images tuned for X, IG, TikTok and more.
               </p>
             </div>
           </section>
@@ -709,56 +706,71 @@ export default function App() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
-              {searchResults.map((q) => (
-                <article
-                  key={q.id}
-                  className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2 hover:border-indigo-500/70 hover:-translate-y-0.5 hover:shadow-xl transition cursor-pointer"
-                  onClick={() => selectQuote(q)}
-                >
-                  <div className="flex justify-between items-start gap-3">
-                    <p className="text-sm text-slate-100 leading-relaxed">
-                      “{q.quote_text}”
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(String(q.id));
-                      }}
-                      className={
-                        favorites.includes(String(q.id))
-                          ? "text-rose-400"
-                          : "text-slate-500 hover:text-rose-400"
-                      }
-                    >
-                      <Heart
-                        size={18}
-                        fill={
-                          favorites.includes(String(q.id)) ? "currentColor" : "none"
+              {searchResults.map((q) => {
+                const charName = getCharacterName(q);
+                const animeTitle = getAnimeTitle(q);
+                return (
+                  <article
+                    key={q.id}
+                    className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2 hover:border-indigo-500/70 hover:-translate-y-0.5 hover:shadow-xl transition cursor-pointer"
+                    onClick={() => selectQuote(q)}
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <p className="text-sm text-slate-100 leading-relaxed">
+                        “{q.quote_text}”
+                      </p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(String(q.id));
+                        }}
+                        className={
+                          favorites.includes(String(q.id))
+                            ? "text-rose-400"
+                            : "text-slate-500 hover:text-rose-400"
                         }
-                      />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
-                    <div>
-                      <span className="text-indigo-300 font-medium">
-                        {q.character.name}
-                      </span>{" "}
-                      <span className="text-slate-500">• {q.anime.title}</span>
-                      {q.episode_number && (
-                        <span className="text-slate-600">
-                          {" "}
-                          • Ep {q.episode_number}
+                      >
+                        <Heart
+                          size={18}
+                          fill={
+                            favorites.includes(String(q.id))
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                      <div>
+                        {charName && (
+                          <span className="text-indigo-300 font-medium">
+                            {charName}
+                          </span>
+                        )}
+                        {animeTitle && (
+                          <>
+                            {charName && <span className="text-slate-500"> • </span>}
+                            <span className="text-slate-500">
+                              {animeTitle}
+                            </span>
+                          </>
+                        )}
+                        {q.episode_number && (
+                          <span className="text-slate-600">
+                            {" "}
+                            • Ep {q.episode_number}
+                          </span>
+                        )}
+                      </div>
+                      {q.emotion && (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[9px] text-slate-400">
+                          {q.emotion}
                         </span>
                       )}
                     </div>
-                    {q.emotion && (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[9px] text-slate-400">
-                        {q.emotion}
-                      </span>
-                    )}
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </main>
@@ -767,6 +779,9 @@ export default function App() {
   }
 
   /* ==================== GENERATOR VIEW ==================== */
+
+  const genChar = getCharacterName(selectedQuote);
+  const genAnime = getAnimeTitle(selectedQuote);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -792,9 +807,7 @@ export default function App() {
         <div className="grid md:grid-cols-2 gap-6 items-start">
           {/* Preview */}
           <section>
-            <h2 className="text-sm font-semibold text-slate-300 mb-3">
-              Preview
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-300 mb-3">Preview</h2>
             <div
               className="rounded-2xl shadow-2xl aspect-video flex items-center justify-center p-8 border border-slate-800 bg-slate-900 overflow-hidden"
               style={{ background: background.css }}
@@ -804,19 +817,25 @@ export default function App() {
                   className="text-white text-2xl md:text-3xl font-semibold mb-5 leading-relaxed drop-shadow-[0_8px_24px_rgba(15,23,42,0.9)]"
                   style={{ fontFamily: font.css }}
                 >
-                  {selectedQuote ? `“${selectedQuote.quote_text}”` : "Pick a quote from search or try Random."}
+                  {selectedQuote
+                    ? `“${selectedQuote.quote_text}”`
+                    : "Pick a quote from search or tap Random to start."}
                 </p>
                 {selectedQuote && (
                   <>
-                    <p className="text-sm md:text-base text-slate-100 font-semibold drop-shadow">
-                      — {selectedQuote.character.name}
-                    </p>
-                    <p className="text-xs md:text-sm text-slate-200/80 drop-shadow">
-                      {selectedQuote.anime.title}
-                      {selectedQuote.episode_number
-                        ? ` • Ep ${selectedQuote.episode_number}`
-                        : ""}
-                    </p>
+                    {genChar && (
+                      <p className="text-sm md:text-base text-slate-100 font-semibold drop-shadow">
+                        — {genChar}
+                      </p>
+                    )}
+                    {genAnime && (
+                      <p className="text-xs md:text-sm text-slate-200/80 drop-shadow">
+                        {genAnime}
+                        {selectedQuote.episode_number
+                          ? ` • Ep ${selectedQuote.episode_number}`
+                          : ""}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -826,16 +845,12 @@ export default function App() {
 
           {/* Controls */}
           <section>
-            <h2 className="text-sm font-semibold text-slate-300 mb-3">
-              Customize
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-300 mb-3">Customize</h2>
 
             {/* Backgrounds */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-200">
-                  Background
-                </span>
+                <span className="text-xs font-semibold text-slate-200">Background</span>
                 <span className="text-[9px] text-slate-500">
                   {allowedBgCount} / {BACKGROUNDS.length} unlocked
                 </span>
@@ -877,9 +892,7 @@ export default function App() {
             {/* Fonts */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-200">
-                  Font
-                </span>
+                <span className="text-xs font-semibold text-slate-200">Font</span>
                 <span className="text-[9px] text-slate-500">
                   {allowedFontCount} / {FONTS.length} unlocked
                 </span>
@@ -956,4 +969,32 @@ export default function App() {
 function awaitLabelDaily(n: number | null) {
   if (n == null || !Number.isFinite(n)) return "Unlimited";
   return `${n}/day`;
+}
+
+/**
+ * Safely get character name from either:
+ * - { character: { name } }
+ * - { character_name }
+ */
+function getCharacterName(q: any): string {
+  if (!q) return "";
+  return (
+    q?.character?.name ??
+    q?.character_name ??
+    ""
+  );
+}
+
+/**
+ * Safely get anime title from either:
+ * - { anime: { title } }
+ * - { anime_title }
+ */
+function getAnimeTitle(q: any): string {
+  if (!q) return "";
+  return (
+    q?.anime?.title ??
+    q?.anime_title ??
+    ""
+  );
 }
