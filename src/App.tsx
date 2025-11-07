@@ -21,6 +21,7 @@ import {
   loadUserData,
   loadStats,
   searchQuotes,
+  searchQuotesByEmotion,
   randomQuote,
   toggleFavorite as toggleFav,
   incrementView,
@@ -166,8 +167,22 @@ export default function App() {
     setIsLoading(false);
   }
 
+  async function runEmotionSearch(emotion: string) {
+    setIsLoading(true);
+    setView("search");
+    const rows = await searchQuotesByEmotion(emotion, 24, 1);
+    setSearchResults(rows || []);
+    setIsLoading(false);
+  }
+
+
   async function handleSearch() {
-    await runSearch(searchQuery);
+    const trimmed = searchQuery.trim().toLowerCase();
+    if (EMOTIONS.includes(trimmed as any)) {
+      await runEmotionSearch(trimmed);
+    } else {
+      await runSearch(searchQuery);
+    }
   }
 
   async function handleRandom() {
@@ -677,7 +692,7 @@ export default function App() {
                   key={e}
                   onClick={() => {
                     setSearchQuery(e);
-                    runSearch(e);
+                    runEmotionSearch(e);
                   }}
                   className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 hover:border-indigo-500 hover:text-indigo-300 transition"
                 >
@@ -864,11 +879,10 @@ export default function App() {
                         ? setShowPricing(true)
                         : setBackground(bg)
                     }
-                    className={`h-12 rounded-xl border text-[9px] text-slate-50 flex items-end justify-start px-1 pb-1 relative overflow-hidden transition ${
-                      background.id === bg.id
-                        ? "border-indigo-400 ring-1 ring-indigo-400/40"
-                        : "border-slate-800 hover:border-slate-600"
-                    }`}
+                    className={`h-12 rounded-xl border text-[9px] text-slate-50 flex items-end justify-start px-1 pb-1 relative overflow-hidden transition ${background.id === bg.id
+                      ? "border-indigo-400 ring-1 ring-indigo-400/40"
+                      : "border-slate-800 hover:border-slate-600"
+                      }`}
                     style={{ background: bg.css }}
                   >
                     <span className="backdrop-blur-sm bg-slate-950/30 px-1 rounded">
@@ -904,11 +918,10 @@ export default function App() {
                     onClick={() =>
                       !isFontAllowed(f.id) ? setShowPricing(true) : setFont(f)
                     }
-                    className={`flex-1 py-2 rounded-xl border text-xs transition relative ${
-                      font.id === f.id
-                        ? "border-indigo-400 bg-slate-900"
-                        : "border-slate-800 bg-slate-950 hover:border-slate-600"
-                    }`}
+                    className={`flex-1 py-2 rounded-xl border text-xs transition relative ${font.id === f.id
+                      ? "border-indigo-400 bg-slate-900"
+                      : "border-slate-800 bg-slate-950 hover:border-slate-600"
+                      }`}
                     style={{ fontFamily: f.css }}
                   >
                     {f.name}
