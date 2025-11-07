@@ -1,7 +1,7 @@
 // src/components/views/StudioView.tsx
-import React, { RefObject } from "react";
+import React from "react";
+import { Download, Lock, Sparkles } from "lucide-react";
 import { BACKGROUNDS, FONTS, PlanKey, WatermarkLevel } from "../../config/ui";
-import { Download, Instagram, Lock, Twitter } from "lucide-react";
 
 interface StudioViewProps {
   selectedQuote: any;
@@ -9,13 +9,21 @@ interface StudioViewProps {
   fontId: number;
   planKey: PlanKey;
   watermarkLevel: WatermarkLevel;
-  dailyLimitLabel: string;
+  dailyLimitLabel: string; // e.g. "3/day" or "Unlimited"
   userHasPlan: boolean;
   onSelectBackground: (id: number) => void;
   onSelectFont: (id: number) => void;
   onDownload: () => void;
   onUpgrade: () => void;
-  canvasRef: RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+}
+
+const PLAN_ORDER: PlanKey[] = ["free", "basic", "pro"];
+const planRank = (p: PlanKey) => PLAN_ORDER.indexOf(p || "free");
+
+function isLockedForPlan(itemMin: PlanKey | undefined, userPlan: PlanKey) {
+  if (!itemMin) return false;
+  return planRank(userPlan) < planRank(itemMin);
 }
 
 export const StudioView: React.FC<StudioViewProps> = ({
@@ -32,111 +40,148 @@ export const StudioView: React.FC<StudioViewProps> = ({
   onUpgrade,
   canvasRef,
 }) => {
-  const isPro = planKey === "pro";
-  const isBasic = planKey === "basic";
+  const bg =
+    BACKGROUNDS.find((b) => b.id === backgroundId) ?? BACKGROUNDS[0];
+  const font =
+    FONTS.find((f) => f.id === fontId) ?? FONTS[0];
 
-  const bgConfig = BACKGROUNDS.find((b) => b.id === backgroundId) ?? BACKGROUNDS[0];
-  const fontConfig = FONTS.find((f) => f.id === fontId) ?? FONTS[1];
-
-  const allowedBgCount = isPro ? BACKGROUNDS.length : isBasic ? 4 : 2;
-  const allowedFontCount = isPro ? FONTS.length : isBasic ? 2 : 1;
-  const isBgAllowed = (id: number) => id <= allowedBgCount;
-  const isFontAllowed = (id: number) => id <= allowedFontCount;
-
-  const charName =
-    selectedQuote?.character?.name ?? selectedQuote?.character_name ?? "";
+  const quoteText =
+    selectedQuote?.quote_text ??
+    "Select a quote from Search or hit Random to start designing.";
+  const characterName =
+    selectedQuote?.character?.name ??
+    selectedQuote?.character_name ??
+    "";
   const animeTitle =
-    selectedQuote?.anime?.title ?? selectedQuote?.anime_title ?? "";
+    selectedQuote?.anime?.title ??
+    selectedQuote?.anime_title ??
+    "";
+
+  const watermarkLabel =
+    watermarkLevel === "none"
+      ? ""
+      : watermarkLevel === "small"
+      ? "Subtle watermark (Basic)"
+      : "Diagonal watermark (Free)";
+
+  const canDownload = !!selectedQuote;
 
   return (
-    <main className="min-h-[calc(100vh-64px)] bg-slate-950 text-slate-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight mb-6 text-center">
-          Quote Studio
-        </h1>
-        <p className="text-xs text-slate-500 text-center mb-8">
-          Customize your quote image. Change backgrounds and fonts, then download
-          a ready-to-share PNG.
-        </p>
+    <main className="min-h-[calc(100vh-64px)] bg-[#050816] text-slate-50 pt-24 pb-16">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Heading */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-2">
+            Quote Studio
+          </h1>
+          <p className="text-sm md:text-[15px] text-slate-400 max-w-2xl mx-auto">
+            Customize your quote image. Pick a background, choose a font,
+            then download a social-ready PNG in seconds.
+          </p>
+        </div>
 
-        <div className="grid md:grid-cols-2 gap-6 items-start">
-          {/* Preview */}
-          <section>
-            <div
-              className="rounded-2xl shadow-2xl aspect-video flex items-center justify-center p-8 border border-slate-800 bg-slate-900 overflow-hidden"
-              style={{ background: bgConfig.css }}
-            >
-              <div className="text-center max-w-xl mx-auto">
+        {/* Layout */}
+        <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)] gap-8 items-start">
+          {/* Left: Preview */}
+          <div className="flex justify-center">
+            <div className="relative w-full max-w-[720px] aspect-[1200/630] rounded-3xl bg-[#020817] shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden">
+              {/* Gradient background */}
+              <div
+                className="absolute inset-0"
+                style={{ background: bg.css }}
+              />
+
+              {/* Quote text */}
+              <div className="relative h-full px-14 py-16 flex flex-col items-center justify-center text-center">
                 <p
-                  className="text-white text-2xl md:text-3xl font-semibold mb-5 leading-relaxed drop-shadow-[0_8px_24px_rgba(15,23,42,0.9)]"
-                  style={{ fontFamily: fontConfig.css }}
+                  className="text-slate-50 font-semibold leading-relaxed mb-8"
+                  style={{
+                    fontFamily: font.css,
+                    fontSize: "30px",
+                  }}
                 >
-                  {selectedQuote
-                    ? `“${selectedQuote.quote_text}”`
-                    : "Pick a quote from search or try a random one."}
+                  “{quoteText}”
                 </p>
-                {selectedQuote && (
-                  <>
-                    {charName && (
-                      <p className="text-sm md:text-base text-slate-100 font-semibold drop-shadow">
-                        — {charName}
-                      </p>
+
+                {(characterName || animeTitle) && (
+                  <div className="text-slate-200 text-sm mt-2">
+                    {characterName && (
+                      <div className="font-semibold mb-1">
+                        — {characterName}
+                      </div>
                     )}
                     {animeTitle && (
-                      <p className="text-xs md:text-sm text-slate-200/80 drop-shadow">
+                      <div className="text-slate-300 text-xs">
                         {animeTitle}
-                        {selectedQuote.episode_number
-                          ? ` • Ep ${selectedQuote.episode_number}`
-                          : ""}
-                      </p>
+                      </div>
                     )}
-                  </>
+                  </div>
                 )}
-                <p className="absolute bottom-3 right-4 text-[9px] text-slate-300/70">
-                  {planKey === "free"
-                    ? "Heavy watermark preview"
-                    : planKey === "basic"
-                    ? "Subtle corner watermark"
-                    : "No watermark on Pro"}
-                </p>
+
+                {/* Watermark preview */}
+                {planKey !== "pro" && (
+                  <div className="absolute right-6 bottom-4 text-[9px] text-slate-300/65">
+                    AnimeQuoteStudio.com
+                  </div>
+                )}
               </div>
             </div>
-            <canvas ref={canvasRef} className="hidden" />
-          </section>
+          </div>
 
-          {/* Controls */}
-          <section>
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-200">
+          {/* Hidden canvas for real export */}
+          <canvas
+            ref={canvasRef}
+            className="hidden"
+            aria-hidden="true"
+          />
+
+          {/* Right: Controls */}
+          <aside className="space-y-6 bg-[#050816]">
+            {/* Backgrounds */}
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-sm font-semibold text-slate-200">
                   Background
-                </span>
-                <span className="text-[9px] text-slate-500">
-                  {allowedBgCount} / {BACKGROUNDS.length} unlocked
-                </span>
+                </h2>
+                <p className="text-[10px] text-slate-500">
+                  {planKey === "pro"
+                    ? "All unlocked"
+                    : planKey === "basic"
+                    ? "More styles with Pro"
+                    : "2 / 8 unlocked"}
+                </p>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {BACKGROUNDS.map((bg) => {
-                  const locked = !isBgAllowed(bg.id);
+              <div className="grid grid-cols-3 gap-2">
+                {BACKGROUNDS.map((b) => {
+                  const locked = isLockedForPlan(
+                    (b as any).minPlan,
+                    planKey
+                  );
+                  const active = b.id === bg.id;
+
                   return (
                     <button
-                      key={bg.id}
+                      key={b.id}
                       onClick={() =>
-                        locked ? onUpgrade() : onSelectBackground(bg.id)
+                        !locked && onSelectBackground(b.id)
                       }
-                      className={`h-10 rounded-xl border text-[8px] text-slate-50 flex items-end justify-start px-1 pb-1 relative overflow-hidden transition ${
-                        backgroundId === bg.id
-                          ? "border-indigo-400 ring-1 ring-indigo-400/40"
-                          : "border-slate-800 hover:border-slate-600"
-                      }`}
-                      style={{ background: bg.css }}
+                      className={`relative h-14 rounded-2xl border transition-all overflow-hidden ${
+                        active
+                          ? "border-sky-500 shadow-[0_0_18px_rgba(56,189,248,0.4)]"
+                          : "border-slate-800 hover:border-sky-500/70 hover:shadow-[0_0_12px_rgba(56,189,248,0.25)]"
+                      } ${locked ? "opacity-55 cursor-not-allowed" : ""}`}
+                      style={{ background: b.css }}
                     >
-                      <span className="backdrop-blur-sm bg-slate-950/30 px-1 rounded">
-                        {bg.name}
+                      <div className="absolute inset-0 bg-black/10" />
+                      <span className="relative z-10 text-[10px] font-medium text-slate-50 px-2 py-1">
+                        {b.name}
                       </span>
                       {locked && (
-                        <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
-                          <Lock size={12} className="text-sky-400" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/55 text-[9px] text-slate-200">
+                            <Lock size={10} />
+                            Pro
+                          </div>
                         </div>
                       )}
                     </button>
@@ -145,37 +190,49 @@ export const StudioView: React.FC<StudioViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-200">
+            {/* Fonts */}
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-sm font-semibold text-slate-200">
                   Font
-                </span>
-                <span className="text-[9px] text-slate-500">
-                  {allowedFontCount} / {FONTS.length} unlocked
-                </span>
+                </h2>
+                <p className="text-[10px] text-slate-500">
+                  {planKey === "pro"
+                    ? "All fonts unlocked"
+                    : "Premium faces with Pro"}
+                </p>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {FONTS.map((f) => {
-                  const locked = !isFontAllowed(f.id);
+                  const locked = isLockedForPlan(
+                    (f as any).minPlan,
+                    planKey
+                  );
+                  const active = f.id === font.id;
+
                   return (
                     <button
                       key={f.id}
-                      onClick={() =>
-                        locked ? onUpgrade() : onSelectFont(f.id)
-                      }
-                      className={`flex-1 py-2 rounded-xl border text-xs transition relative ${
-                        fontId === f.id
-                          ? "border-indigo-400 bg-slate-900"
-                          : "border-slate-800 bg-slate-950 hover:border-slate-600"
-                      }`}
-                      style={{ fontFamily: f.css }}
+                      onClick={() => !locked && onSelectFont(f.id)}
+                      className={`relative px-3 py-3 rounded-2xl border text-left transition-all ${
+                        active
+                          ? "border-sky-500 bg-[#0f172a] shadow-[0_0_16px_rgba(56,189,248,0.35)]"
+                          : "border-slate-800 bg-[#050816] hover:border-sky-500/70 hover:bg-[#060b18]"
+                      } ${locked ? "opacity-55 cursor-not-allowed" : ""}`}
                     >
-                      {f.name}
+                      <div
+                        className="text-xs text-slate-100 truncate"
+                        style={{ fontFamily: f.css }}
+                      >
+                        {f.name}
+                      </div>
                       {locked && (
-                        <Lock
-                          size={12}
-                          className="absolute top-1.5 right-1.5 text-sky-400"
-                        />
+                        <div className="absolute inset-0 flex items-center justify-end pr-2">
+                          <Lock
+                            size={11}
+                            className="text-slate-400"
+                          />
+                        </div>
                       )}
                     </button>
                   );
@@ -183,38 +240,72 @@ export const StudioView: React.FC<StudioViewProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={onDownload}
-              className="w-full py-3 rounded-xl bg-sky-500 text-slate-950 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-sky-400 mb-3"
-            >
-              <Download size={18} /> Download PNG
-            </button>
-
-            <p className="text-[9px] text-slate-500 mb-3">
-              {userHasPlan
-                ? `Your plan: ${planKey}. Downloads: ${dailyLimitLabel}.`
-                : "Log in to track your downloads and unlock more styles."}
-            </p>
-
-            {(!isPro || !userHasPlan) && (
+            {/* Download CTA */}
+            <div className="space-y-2 pt-2">
               <button
-                onClick={onUpgrade}
-                className="w-full py-2 rounded-xl bg-slate-900 border border-slate-700 text-[10px] text-slate-200 hover:bg-slate-800 mb-3"
+                onClick={canDownload ? onDownload : undefined}
+                disabled={!canDownload}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all ${
+                  canDownload
+                    ? "bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-[0_16px_40px_rgba(56,189,248,0.35)]"
+                    : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                }`}
               >
-                Unlock all backgrounds, fonts & watermark-free exports with Pro →
+                <Download size={18} />
+                Download PNG
               </button>
-            )}
+              <p className="text-[10px] text-slate-500">
+                {dailyLimitLabel === "Unlimited" ? (
+                  <>Unlimited downloads on your plan.</>
+                ) : (
+                  <>
+                    {dailyLimitLabel} downloads remaining today
+                    (per plan rules).
+                  </>
+                )}
+                {watermarkLabel && (
+                  <>
+                    {" "}
+                    <span className="text-slate-400">
+                      • {watermarkLabel}
+                    </span>
+                  </>
+                )}
+              </p>
 
-            <div className="flex gap-2">
-              <button className="flex-1 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-300 flex items-center justify-center gap-2 hover:bg-slate-800">
-                <Twitter size={14} /> Share on X
-              </button>
-              <button className="flex-1 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-300 flex items-center justify-center gap-2 hover:bg-slate-800">
-                <Instagram size={14} /> Share on IG
-              </button>
+              {/* Upgrade nudge */}
+              {planKey !== "pro" && (
+                <button
+                  onClick={onUpgrade}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-2xl bg-[#050816] border border-slate-800 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300 hover:bg-sky-500/5 transition-all"
+                >
+                  <Sparkles size={14} className="text-sky-400" />
+                  Unlock all backgrounds, fonts & watermark-free exports
+                  with Pro →
+                </button>
+              )}
+              {!userHasPlan && (
+                <p className="text-[9px] text-slate-500">
+                  Log in or sign up to track your downloads and save your
+                  favorites.
+                </p>
+              )}
             </div>
-          </section>
+          </aside>
         </div>
+
+        {/* If no quote selected, hint */}
+        {!selectedQuote && (
+          <div className="mt-10 text-center text-xs text-slate-500">
+            Tip: start from the{" "}
+            <span className="text-sky-400 font-medium">Search</span>{" "}
+            page or hit{" "}
+            <span className="text-sky-400 font-medium">
+              Random
+            </span>{" "}
+            to load a quote into the Studio.
+          </div>
+        )}
       </div>
     </main>
   );
