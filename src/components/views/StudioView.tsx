@@ -1,4 +1,5 @@
 // src/components/views/StudioView.tsx
+// src/components/views/StudioView.tsx
 import React from "react";
 import { Download, Lock, Sparkles } from "lucide-react";
 import {
@@ -23,23 +24,17 @@ interface StudioViewProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
-/**
- * Simple deterministic gating based on index:
- * - Backgrounds: [0,1] = free, [2,3] = basic, [4+] = pro
- * - Fonts: [0] = free, [1] = basic, [2+] = pro
- */
+/** Gating logic based on index; matches your pricing rules */
 function requiredPlanForBackground(index: number): PlanKey {
-  if (index <= 1) return "free";
-  if (index <= 3) return "basic";
-  return "pro";
+  if (index <= 1) return "free"; // first 2 free
+  if (index <= 3) return "basic"; // next 2 basic
+  return "pro"; // rest pro
 }
-
 function requiredPlanForFont(index: number): PlanKey {
   if (index === 0) return "free";
   if (index === 1) return "basic";
   return "pro";
 }
-
 const PLAN_ORDER: PlanKey[] = ["free", "basic", "pro"];
 const rank = (p: PlanKey) => PLAN_ORDER.indexOf(p || "free");
 const isLocked = (required: PlanKey, user: PlanKey) =>
@@ -64,38 +59,54 @@ export const StudioView: React.FC<StudioViewProps> = ({
   const font =
     FONTS.find((f) => f.id === fontId) ?? FONTS[0];
 
-  const quoteText =
+  const quoteText: string =
     selectedQuote?.quote_text ??
     "Select a quote from Search or tap Random to start designing.";
-  const characterName =
+  const characterName: string =
     selectedQuote?.character?.name ??
     selectedQuote?.character_name ??
     "";
-  const animeTitle =
+  const animeTitle: string =
     selectedQuote?.anime?.title ??
     selectedQuote?.anime_title ??
     "";
+
+  // Dynamic font sizing based on quote length.
+  // Goal: never overflow the 1200x630 ratio, especially on mobile.
+  const len = quoteText.length;
+  let quoteSizeClass =
+    "text-[16px] sm:text-[18px] md:text-[22px] lg:text-[24px]";
+  if (len > 420) {
+    quoteSizeClass =
+      "text-[12px] sm:text-[13px] md:text-[16px] lg:text-[18px]";
+  } else if (len > 320) {
+    quoteSizeClass =
+      "text-[13px] sm:text-[14px] md:text-[18px] lg:text-[20px]";
+  } else if (len > 220) {
+    quoteSizeClass =
+      "text-[14px] sm:text-[15px] md:text-[20px] lg:text-[22px]";
+  }
 
   const watermarkLabel =
     watermarkLevel === "none"
       ? ""
       : watermarkLevel === "small"
-      ? "Subtle watermark (Basic)"
-      : "Diagonal watermark (Free)";
+      ? "Subtle watermark"
+      : "Diagonal watermark";
 
   const canDownload = !!selectedQuote;
 
   return (
     <main className="min-h-[100vh] bg-[#050816] text-slate-50 pt-24 pb-16">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* Heading */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-2">
+          <h1 className="text-[26px] sm:text-3xl md:text-4xl font-semibold tracking-tight mb-2">
             Quote Studio
           </h1>
-          <p className="text-sm md:text-[15px] text-slate-400 max-w-2xl mx-auto">
-            Customize your quote image. Pick a background, choose a font, then
-            download a social-ready PNG in seconds.
+          <p className="text-xs sm:text-sm md:text-[15px] text-slate-400 max-w-2xl mx-auto">
+            Customize your quote image. Pick a background, choose a font,
+            then download a social-ready PNG in seconds.
           </p>
         </div>
 
@@ -111,28 +122,27 @@ export const StudioView: React.FC<StudioViewProps> = ({
               />
 
               {/* Content */}
-              <div className="relative h-full px-8 sm:px-10 md:px-14 py-8 sm:py-10 md:py-12 flex flex-col">
-                {/* Quote block (vertically centered but never clipped) */}
-                <div className="flex-1 flex items-center">
+              <div className="relative h-full px-5 sm:px-8 md:px-10 py-6 sm:py-8 md:py-10 flex flex-col">
+                {/* Quote: top-aligned on mobile, centered on md+ */}
+                <div className="flex-1 flex items-start md:items-center">
                   <p
-                    className="w-full text-slate-50 font-semibold leading-relaxed mb-4
-                               text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]"
+                    className={`w-full text-slate-50 font-semibold leading-snug sm:leading-relaxed mb-3 ${quoteSizeClass}`}
                     style={{ fontFamily: font.css }}
                   >
                     “{quoteText}”
                   </p>
                 </div>
 
-                {/* Attribution at bottom */}
+                {/* Attribution */}
                 {(characterName || animeTitle) && (
-                  <div className="mt-2 text-center">
+                  <div className="mt-1 text-left md:text-center">
                     {characterName && (
-                      <div className="font-semibold text-slate-100 text-xs sm:text-sm">
+                      <div className="font-semibold text-slate-100 text-[10px] sm:text-xs md:text-sm">
                         — {characterName}
                       </div>
                     )}
                     {animeTitle && (
-                      <div className="text-slate-300 text-[10px] sm:text-xs">
+                      <div className="text-slate-300 text-[9px] sm:text-[10px] md:text-xs">
                         {animeTitle}
                       </div>
                     )}
@@ -141,7 +151,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
                 {/* Watermark preview for non-Pro */}
                 {planKey !== "pro" && (
-                  <div className="absolute right-5 bottom-3 text-[8px] sm:text-[9px] text-slate-200/70">
+                  <div className="absolute right-4 bottom-2 text-[7px] sm:text-[8px] text-slate-200/80">
                     AnimeQuoteStudio.com
                   </div>
                 )}
@@ -149,7 +159,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
             </div>
           </div>
 
-          {/* Hidden canvas (real export target) */}
+          {/* Hidden canvas (for real PNG export) */}
           <canvas
             ref={canvasRef}
             className="hidden"
@@ -164,7 +174,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <h2 className="text-sm md:text-base font-semibold text-slate-200">
                   Background
                 </h2>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[9px] sm:text-[10px] text-slate-500">
                   {planKey === "pro"
                     ? "All unlocked"
                     : planKey === "basic"
@@ -172,7 +182,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     : "2 / 8 unlocked"}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {BACKGROUNDS.map((b, idx) => {
                   const required = requiredPlanForBackground(idx);
                   const locked = isLocked(required, planKey);
@@ -197,13 +207,13 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         }`}
                       style={{ background: b.css }}
                     >
-                      <span className="relative z-10 text-[10px] sm:text-[11px] font-medium text-slate-50 drop-shadow">
+                      <span className="relative z-10 text-[9px] sm:text-[10px] font-medium text-slate-50 drop-shadow">
                         {b.name}
                       </span>
                       {locked && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 text-[9px] text-slate-100">
-                            <Lock size={10} />
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/55 text-[8px] text-slate-100">
+                            <Lock size={9} />
                             {required === "pro" ? "Pro" : "Basic"}
                           </div>
                         </div>
@@ -220,7 +230,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <h2 className="text-sm md:text-base font-semibold text-slate-200">
                   Font
                 </h2>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[9px] sm:text-[10px] text-slate-500">
                   Premium faces with Pro
                 </p>
               </div>
@@ -247,7 +257,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         }`}
                     >
                       <div
-                        className="text-[11px] sm:text-[12px] text-slate-100 truncate"
+                        className="text-[10px] sm:text-[11px] text-slate-100 truncate"
                         style={{ fontFamily: f.css }}
                       >
                         {f.name}
@@ -255,7 +265,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       {locked && (
                         <div className="absolute inset-0 flex items-center justify-end pr-2">
                           <Lock
-                            size={11}
+                            size={10}
                             className="text-slate-400"
                           />
                         </div>
@@ -282,13 +292,13 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 Download PNG
               </button>
 
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[9px] sm:text-[10px] text-slate-500">
                 {dailyLimitLabel === "Unlimited" ? (
                   <>Unlimited downloads on your plan.</>
                 ) : (
                   <>
-                    {dailyLimitLabel} downloads remaining today
-                    (per plan rules).
+                    {dailyLimitLabel} downloads per day (per plan
+                    rules).
                   </>
                 )}
                 {watermarkLabel && (
@@ -301,11 +311,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 )}
               </p>
 
-              {/* Upgrade nudge */}
               {planKey !== "pro" && (
                 <button
                   onClick={onUpgrade}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-2xl bg-[#050816] border border-slate-800 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300 hover:bg-sky-500/5 transition-all"
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-2xl bg-[#050816] border border-slate-800 text-[10px] sm:text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300 hover:bg-sky-500/5 transition-all"
                 >
                   <Sparkles
                     size={14}
@@ -317,7 +326,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
               )}
 
               {!userHasPlan && (
-                <p className="text-[9px] text-slate-500">
+                <p className="text-[8px] sm:text-[9px] text-slate-500">
                   Log in or sign up to track your downloads and save
                   your favorites.
                 </p>
@@ -326,9 +335,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
           </aside>
         </div>
 
-        {/* Hint if no quote loaded */}
+        {/* Hint */}
         {!selectedQuote && (
-          <div className="mt-10 text-center text-xs text-slate-500">
+          <div className="mt-10 text-center text-[9px] sm:text-[10px] text-slate-500">
             Tip: start from the{" "}
             <span className="text-sky-400 font-medium">
               Search
