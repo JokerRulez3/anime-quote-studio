@@ -61,24 +61,34 @@ export const SearchView: React.FC<SearchViewProps> = ({
             </button>
           </div>
 
-          {/* Emotion chips */}
-          <div className="flex flex-wrap gap-2 text-[11px]">
-            {EMOTIONS.map((emotion) => (
-              <button
-                key={emotion}
-                onClick={() => onEmotionFilter(emotion)}
-                className="px-3 py-1.5 rounded-full bg-[#0b1020] border border-slate-800 text-slate-300 hover:border-sky-500 hover:text-sky-300 transition-colors"
-              >
-                {emotion}
-              </button>
-            ))}
+          {/* Emotion filter chips */}
+          <div className="flex flex-wrap gap-2 mt-1 text-[12px]">
+            {["all", ...EMOTIONS].map((emotion) => {
+              const isAll = emotion === "all";
+              const label = isAll ? "All" : emotion.charAt(0).toUpperCase() + emotion.slice(1);
+              const isActive = false; // (replace with your actual active state if you have one)
+
+              return (
+                <button
+                  key={emotion}
+                  onClick={() => onEmotionFilter(isAll ? "" : emotion)}
+                  className={`px-4 py-1.5 rounded-full font-medium capitalize transition-all duration-200 border 
+          ${isActive
+                      ? "bg-sky-500 text-white border-sky-500 shadow-[0_0_10px_rgba(56,189,248,0.4)]"
+                      : "bg-[#0b1020] border-slate-800 text-slate-300 hover:text-white hover:border-sky-500 hover:bg-sky-500/10"
+                    }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
 
             {/* Random quick action */}
             <button
               onClick={onRandom}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700 text-slate-200 text-[11px] hover:bg-slate-800 hover:text-sky-300"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-medium border border-slate-800 text-slate-300 hover:border-sky-500 hover:text-white hover:bg-sky-500/10 transition-all"
             >
-              <Shuffle size={13} />
+              <Shuffle size={14} />
               Random
             </button>
           </div>
