@@ -31,27 +31,28 @@ export const TopNav: React.FC<TopNavProps> = ({
   const isPro = planKey === "pro";
 
   const linkBase =
-    "text-[11px] md:text-xs px-2 md:px-3 py-1.5 rounded-full transition-colors";
-  const inactive = "text-slate-400 hover:text-slate-100";
+    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors";
+  const inactive =
+    "text-slate-400 hover:text-slate-100 hover:bg-slate-900/60";
   const active =
-    "text-slate-100 bg-slate-900/70 shadow-sm border border-slate-700";
+    "text-slate-100 bg-slate-900/90 border border-slate-700 shadow-sm";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-900/90 bg-[#050816]/95 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 border-b border-slate-900/90 bg-[#050816]/98 backdrop-blur">
+      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
         {/* Logo */}
         <button
           onClick={onLogoClick}
-          className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition"
+          className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition-colors"
         >
-          <span className="text-xl leading-none">〃</span>
+          <span className="text-2xl leading-none">❝❞</span>
           <span className="font-semibold tracking-tight text-sm md:text-base">
             Anime Quote Studio
           </span>
         </button>
 
         {/* Center nav */}
-        <nav className="hidden md:flex items-center gap-2 text-[11px]">
+        <nav className="hidden md:flex items-center gap-2">
           <button
             onClick={onGoSearch}
             className={`${linkBase} ${
@@ -78,11 +79,11 @@ export const TopNav: React.FC<TopNavProps> = ({
           </button>
         </nav>
 
-        {/* Right side: auth / plan */}
+        {/* Right side */}
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] text-slate-200">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/95 border border-slate-800 text-[10px] text-slate-200">
                 {isPro ? (
                   <Crown size={14} className="text-yellow-300" />
                 ) : (
@@ -90,13 +91,13 @@ export const TopNav: React.FC<TopNavProps> = ({
                 )}
                 <span className="capitalize">{planKey}</span>
                 <span className="text-slate-600">•</span>
-                <span className="max-w-[80px] truncate">
+                <span className="max-w-[90px] truncate">
                   {user.email?.split("@")[0] ?? "creator"}
                 </span>
               </div>
               <button
                 onClick={onSignOut}
-                className="px-3 py-1.5 rounded-full bg-slate-900 text-slate-300 text-[10px] hover:bg-slate-800 flex items-center gap-1"
+                className="px-3 py-1.5 rounded-full bg-slate-900 text-slate-200 text-[10px] hover:bg-slate-800 flex items-center gap-1"
               >
                 <LogOut size={12} />
                 <span>Log out</span>
@@ -106,7 +107,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <>
               <button
                 onClick={onSignIn}
-                className="px-3 py-1.5 rounded-full bg-transparent text-[10px] text-slate-300 hover:bg-slate-900/70 hover:text-slate-100 border border-transparent hover:border-slate-800"
+                className="px-3 py-1.5 rounded-full text-[10px] text-slate-300 hover:text-slate-100 hover:bg-slate-900/70"
               >
                 Log In
               </button>
