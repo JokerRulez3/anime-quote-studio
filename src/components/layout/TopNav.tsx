@@ -33,19 +33,19 @@ export const TopNav: React.FC<TopNavProps> = ({
   const linkBase =
     "px-3 py-1.5 rounded-full text-xs font-medium transition-colors";
   const inactive =
-    "text-slate-400 hover:text-slate-100 hover:bg-slate-900/60";
+    "text-slate-400 hover:text-slate-100 hover:bg-slate-900/70";
   const active =
-    "text-slate-100 bg-slate-900/90 border border-slate-700 shadow-sm";
+    "text-slate-100 bg-slate-900/95 border border-slate-700 shadow-sm";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-900/90 bg-[#050816]/98 backdrop-blur">
+    <header className="fixed top-0 left-0 right-0 z-30 bg-[#050816] border-b border-slate-900/90 backdrop-blur">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
         {/* Logo */}
         <button
           onClick={onLogoClick}
           className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition-colors"
         >
-          <span className="text-2xl leading-none">❝❞</span>
+          <span className="text-xl leading-none">❝❞</span>
           <span className="font-semibold tracking-tight text-sm md:text-base">
             Anime Quote Studio
           </span>
@@ -107,7 +107,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <>
               <button
                 onClick={onSignIn}
-                className="px-3 py-1.5 rounded-full text-[10px] text-slate-300 hover:text-slate-100 hover:bg-slate-900/70"
+                className="px-3 py-1.5 rounded-full text-[10px] text-slate-300 hover:text-slate-100 hover:bg-slate-900/80"
               >
                 Log In
               </button>
