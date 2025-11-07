@@ -31,7 +31,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   const isPro = planKey === "pro";
 
   const linkBase =
-    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors";
+  "px-3 py-2 rounded-full text-sm font-medium transition-colors";
   const inactive =
     "text-slate-400 hover:text-slate-100 hover:bg-slate-900/70";
   const active =
@@ -46,7 +46,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition-colors"
         >
           <span className="text-xl leading-none">❝❞</span>
-          <span className="font-semibold tracking-tight text-sm md:text-base">
+          <span className="font-semibold tracking-tight text-base md:text-lg">
             Anime Quote Studio
           </span>
         </button>
@@ -107,7 +107,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <>
               <button
                 onClick={onSignIn}
-                className="px-3 py-1.5 rounded-full text-[10px] text-slate-300 hover:text-slate-100 hover:bg-slate-900/80"
+                className="px-3 py-2 rounded-full text-sm text-slate-300 hover:text-slate-100 hover:bg-slate-900/80"
               >
                 Log In
               </button>
