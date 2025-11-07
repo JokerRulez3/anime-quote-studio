@@ -1,7 +1,12 @@
 // src/components/views/StudioView.tsx
 import React from "react";
 import { Download, Lock, Sparkles } from "lucide-react";
-import { BACKGROUNDS, FONTS, PlanKey, WatermarkLevel } from "../../config/ui";
+import {
+  BACKGROUNDS,
+  FONTS,
+  PlanKey,
+  WatermarkLevel,
+} from "../../config/ui";
 
 interface StudioViewProps {
   selectedQuote: any;
@@ -20,9 +25,8 @@ interface StudioViewProps {
 
 /**
  * Simple deterministic gating based on index:
- * - Backgrounds: [0,1]=free, [2,3]=basic, [4+]=pro
- * - Fonts: [0]=free, [1]=basic, [2+]=pro
- * This avoids depending on extra fields in BACKGROUNDS/FONTS.
+ * - Backgrounds: [0,1] = free, [2,3] = basic, [4+] = pro
+ * - Fonts: [0] = free, [1] = basic, [2+] = pro
  */
 function requiredPlanForBackground(index: number): PlanKey {
   if (index <= 1) return "free";
@@ -90,8 +94,8 @@ export const StudioView: React.FC<StudioViewProps> = ({
             Quote Studio
           </h1>
           <p className="text-sm md:text-[15px] text-slate-400 max-w-2xl mx-auto">
-            Customize your quote image. Pick a background, choose a font,
-            then download a social-ready PNG in seconds.
+            Customize your quote image. Pick a background, choose a font, then
+            download a social-ready PNG in seconds.
           </p>
         </div>
 
@@ -107,26 +111,28 @@ export const StudioView: React.FC<StudioViewProps> = ({
               />
 
               {/* Content */}
-              <div className="relative h-full px-14 py-16 flex flex-col items-center justify-center text-center">
-                <p
-                  className="text-slate-50 font-semibold leading-relaxed mb-8"
-                  style={{
-                    fontFamily: font.css,
-                    fontSize: "30px",
-                  }}
-                >
-                  “{quoteText}”
-                </p>
+              <div className="relative h-full px-8 sm:px-10 md:px-14 py-8 sm:py-10 md:py-12 flex flex-col">
+                {/* Quote block (vertically centered but never clipped) */}
+                <div className="flex-1 flex items-center">
+                  <p
+                    className="w-full text-slate-50 font-semibold leading-relaxed mb-4
+                               text-[18px] sm:text-[20px] md:text-[22px] lg:text-[24px]"
+                    style={{ fontFamily: font.css }}
+                  >
+                    “{quoteText}”
+                  </p>
+                </div>
 
+                {/* Attribution at bottom */}
                 {(characterName || animeTitle) && (
-                  <div className="text-slate-200 text-sm mt-2">
+                  <div className="mt-2 text-center">
                     {characterName && (
-                      <div className="font-semibold mb-1">
+                      <div className="font-semibold text-slate-100 text-xs sm:text-sm">
                         — {characterName}
                       </div>
                     )}
                     {animeTitle && (
-                      <div className="text-slate-300 text-xs">
+                      <div className="text-slate-300 text-[10px] sm:text-xs">
                         {animeTitle}
                       </div>
                     )}
@@ -135,7 +141,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
                 {/* Watermark preview for non-Pro */}
                 {planKey !== "pro" && (
-                  <div className="absolute right-6 bottom-4 text-[9px] text-slate-300/65">
+                  <div className="absolute right-5 bottom-3 text-[8px] sm:text-[9px] text-slate-200/70">
                     AnimeQuoteStudio.com
                   </div>
                 )}
@@ -143,8 +149,12 @@ export const StudioView: React.FC<StudioViewProps> = ({
             </div>
           </div>
 
-          {/* Hidden canvas (used for real export) */}
-          <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+          {/* Hidden canvas (real export target) */}
+          <canvas
+            ref={canvasRef}
+            className="hidden"
+            aria-hidden="true"
+          />
 
           {/* RIGHT: Controls */}
           <aside className="space-y-6">
@@ -166,7 +176,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 {BACKGROUNDS.map((b, idx) => {
                   const required = requiredPlanForBackground(idx);
                   const locked = isLocked(required, planKey);
-                  const active = b.id === bg.id;
+                  const active = b.id === backgroundId;
 
                   return (
                     <button
@@ -187,7 +197,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         }`}
                       style={{ background: b.css }}
                     >
-                      <span className="relative z-10 text-[11px] font-medium text-slate-50 drop-shadow">
+                      <span className="relative z-10 text-[10px] sm:text-[11px] font-medium text-slate-50 drop-shadow">
                         {b.name}
                       </span>
                       {locked && (
@@ -218,7 +228,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 {FONTS.map((f, idx) => {
                   const required = requiredPlanForFont(idx);
                   const locked = isLocked(required, planKey);
-                  const active = f.id === font.id;
+                  const active = f.id === fontId;
 
                   return (
                     <button
@@ -237,7 +247,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         }`}
                     >
                       <div
-                        className="text-[12px] text-slate-100 truncate"
+                        className="text-[11px] sm:text-[12px] text-slate-100 truncate"
                         style={{ fontFamily: f.css }}
                       >
                         {f.name}
@@ -277,8 +287,8 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   <>Unlimited downloads on your plan.</>
                 ) : (
                   <>
-                    {dailyLimitLabel} downloads remaining today (per plan
-                    rules).
+                    {dailyLimitLabel} downloads remaining today
+                    (per plan rules).
                   </>
                 )}
                 {watermarkLabel && (
@@ -297,27 +307,32 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   onClick={onUpgrade}
                   className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-2xl bg-[#050816] border border-slate-800 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300 hover:bg-sky-500/5 transition-all"
                 >
-                  <Sparkles size={14} className="text-sky-400" />
-                  Unlock all backgrounds, fonts & watermark-free exports
-                  with Pro →
+                  <Sparkles
+                    size={14}
+                    className="text-sky-400"
+                  />
+                  Unlock all backgrounds, fonts & watermark-free
+                  exports with Pro →
                 </button>
               )}
 
               {!userHasPlan && (
                 <p className="text-[9px] text-slate-500">
-                  Log in or sign up to track your downloads and save your
-                  favorites.
+                  Log in or sign up to track your downloads and save
+                  your favorites.
                 </p>
               )}
             </div>
           </aside>
         </div>
 
-        {/* Empty-state hint */}
+        {/* Hint if no quote loaded */}
         {!selectedQuote && (
           <div className="mt-10 text-center text-xs text-slate-500">
             Tip: start from the{" "}
-            <span className="text-sky-400 font-medium">Search</span>{" "}
+            <span className="text-sky-400 font-medium">
+              Search
+            </span>{" "}
             page or use{" "}
             <span className="text-sky-400 font-medium">
               Random
