@@ -50,17 +50,15 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [downloadLimitMsg, setDownloadLimitMsg] = useState<string | null>(
-    null
-  );
+  const [downloadLimitMsg, setDownloadLimitMsg] =
+    useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const isPro = planKey === "pro";
   const isBasic = planKey === "basic";
 
-  /* ---------- Init ---------- */
-
+  // ---------- Init ----------
   useEffect(() => {
     (async () => {
       const u = await getUserSession();
@@ -80,9 +78,12 @@ export default function App() {
     })();
   }, []);
 
-  /* ---------- Auth ---------- */
-
-  async function handleAuth(email: string, password: string, isSignUp: boolean) {
+  // ---------- Auth ----------
+  async function handleAuth(
+    email: string,
+    password: string,
+    isSignUp: boolean
+  ) {
     setIsLoading(true);
     setAuthError(null);
     try {
@@ -130,8 +131,7 @@ export default function App() {
     setView("landing");
   }
 
-  /* ---------- Search ---------- */
-
+  // ---------- Search ----------
   async function runTextSearch() {
     setIsLoading(true);
     setView("search");
@@ -196,14 +196,13 @@ export default function App() {
     setIsLoading(false);
   }
 
-  /* ---------- Download ---------- */
-
+  // ---------- Download ----------
   function renderWatermark(ctx: CanvasRenderingContext2D) {
     if (watermarkLevel === "none") return;
 
     if (watermarkLevel === "small") {
       ctx.save();
-      ctx.globalAlpha = 0.72;
+      ctx.globalAlpha = 0.8;
       ctx.font = "bold 18px Inter";
       ctx.fillStyle = "white";
       ctx.textAlign = "right";
@@ -241,8 +240,10 @@ export default function App() {
       return;
     }
 
-    const bg = BACKGROUNDS.find((b) => b.id === backgroundId) ?? BACKGROUNDS[0];
-    const font = FONTS.find((f) => f.id === fontId) ?? FONTS[1];
+    const bg =
+      BACKGROUNDS.find((b) => b.id === backgroundId) ?? BACKGROUNDS[0];
+    const font =
+      FONTS.find((f) => f.id === fontId) ?? FONTS[1];
 
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -250,7 +251,7 @@ export default function App() {
     canvas.height = 630;
 
     const grad = ctx.createLinearGradient(0, 0, 1200, 630);
-    const hexes = bg.css.match(/#[0-9a-f]{6}/gi) ?? ["#111827", "#1f2937"];
+    const hexes = bg.css.match(/#[0-9a-f]{6}/gi) ?? ["#020817", "#020817"];
     grad.addColorStop(0, hexes[0]);
     grad.addColorStop(1, hexes[1]);
     ctx.fillStyle = grad;
@@ -261,15 +262,17 @@ export default function App() {
     let size = 56;
     ctx.textAlign = "center";
     ctx.fillStyle = "white";
-    ctx.shadowColor = "rgba(15,23,42,0.9)";
-    ctx.shadowBlur = 14;
+    ctx.shadowColor = "rgba(5,8,22,0.95)";
+    ctx.shadowBlur = 18;
 
     const charName =
       selectedQuote?.character?.name ??
       selectedQuote?.character_name ??
       "";
     const animeTitle =
-      selectedQuote?.anime?.title ?? selectedQuote?.anime_title ?? "";
+      selectedQuote?.anime?.title ??
+      selectedQuote?.anime_title ??
+      "";
 
     function linesFor(text: string, fontSize: number) {
       ctx.font = `600 ${fontSize}px ${font.css}`;
@@ -302,7 +305,7 @@ export default function App() {
     });
 
     if (charName) {
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       ctx.font = `600 26px Inter`;
       ctx.fillText(
         `— ${charName}`,
@@ -336,34 +339,53 @@ export default function App() {
     setStats(s);
   }
 
-  /* ---------- Render ---------- */
+  // ---------- Nav handlers for TopNav ----------
+  function goLanding() {
+    setView("landing");
+  }
 
-  const rightSlot =
-    view === "search" && !authOpen ? null : null; // placeholder if needed later
+  function goSearch() {
+    setView("search");
+  }
 
+  async function goStudio() {
+    if (selectedQuote) {
+      setView("studio");
+      return;
+    }
+    // If no selected quote yet, pull a random so Studio isn't empty
+    await handleRandom();
+  }
+
+  function goPricing() {
+    setView("pricing");
+  }
+
+  // ---------- Render ----------
   return (
     <>
-      {/* Shared nav */}
       <TopNav
         user={user}
         planKey={planKey}
-        onLogoClick={() => setView("landing")}
+        currentView={view}
+        onLogoClick={goLanding}
+        onGoSearch={goSearch}
+        onGoStudio={goStudio}
+        onGoPricing={goPricing}
         onSignIn={() => openAuth("signin")}
         onSignUp={() => openAuth("signup")}
         onSignOut={handleSignOut}
-        rightSlot={rightSlot}
       />
 
-      {/* Views */}
       {view === "landing" && (
         <LandingView
           stats={stats}
           isLoadingRandom={isLoading}
           user={user}
           planKey={planKey}
-          onStartSearch={() => setView("search")}
+          onStartSearch={goSearch}
           onRandom={handleRandom}
-          onUpgrade={() => setView("pricing")}
+          onUpgrade={goPricing}
         />
       )}
 
@@ -396,7 +418,7 @@ export default function App() {
           onSelectBackground={setBackgroundId}
           onSelectFont={setFontId}
           onDownload={handleDownload}
-          onUpgrade={() => setView("pricing")}
+          onUpgrade={goPricing}
           canvasRef={canvasRef}
         />
       )}
@@ -405,11 +427,10 @@ export default function App() {
         <PricingView
           planKey={planKey}
           downloadLimitMsg={downloadLimitMsg}
-          onBack={() => setView("landing")}
+          onBack={goLanding}
         />
       )}
 
-      {/* Auth modal */}
       <AuthModal
         mode={authMode}
         isOpen={authOpen}
@@ -417,7 +438,9 @@ export default function App() {
         error={authError}
         onSubmit={handleAuth}
         onSwitch={() =>
-          setAuthMode((prev) => (prev === "signin" ? "signup" : "signin"))
+          setAuthMode((prev) =>
+            prev === "signin" ? "signup" : "signin"
+          )
         }
         onClose={() => setAuthOpen(false)}
       />
