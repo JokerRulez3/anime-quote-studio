@@ -32,20 +32,30 @@ import {
 /* ==================== CONFIG ==================== */
 
 const BACKGROUNDS = [
-  { id: 1, name: "Sunset", css: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
-  { id: 2, name: "Ocean", css: "linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)" },
-  { id: 3, name: "Blossom", css: "linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)" },
-  { id: 4, name: "Night", css: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)" },
-  { id: 5, name: "Gold", css: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
-  { id: 6, name: "Emerald", css: "linear-gradient(135deg, #134E5E 0%, #71B280 100%)" },
-  { id: 7, name: "Fire", css: "linear-gradient(135deg, #FF512F 0%, #F09819 100%)" },
-  { id: 8, name: "Aurora", css: "linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)" },
+  { id: 1, name: "Sunset", css: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)" },
+  { id: 2, name: "Ocean", css: "linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%)" },
+  { id: 3, name: "Blossom", css: "linear-gradient(135deg, #f97316 0%, #f97316 40%, #ec4899 100%)" },
+  { id: 4, name: "Night", css: "linear-gradient(135deg, #020817 0%, #111827 100%)" },
+  { id: 5, name: "Gold", css: "linear-gradient(135deg, #facc15 0%, #f97316 100%)" },
+  { id: 6, name: "Emerald", css: "linear-gradient(135deg, #065f46 0%, #22c55e 100%)" },
+  { id: 7, name: "Fire", css: "linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%)" },
+  { id: 8, name: "Aurora", css: "linear-gradient(135deg, #4f46e5 0%, #a855f7 50%, #ec4899 100%)" },
 ];
 
 const FONTS = [
   { id: 1, name: "Classic", css: "Georgia, serif" },
-  { id: 2, name: "Modern", css: "Inter, sans-serif" },
-  { id: 3, name: "Bold", css: "Impact, sans-serif" },
+  { id: 2, name: "Modern", css: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" },
+  { id: 3, name: "Bold", css: "Impact, system-ui, sans-serif" },
+];
+
+const EMOTIONS = [
+  "inspiring",
+  "motivational",
+  "sad",
+  "wholesome",
+  "romantic",
+  "dark",
+  "funny",
 ];
 
 /* ==================== MAIN ==================== */
@@ -65,7 +75,7 @@ export default function App() {
 
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [background, setBackground] = useState(BACKGROUNDS[0]);
-  const [font, setFont] = useState(FONTS[0]);
+  const [font, setFont] = useState(FONTS[1]); // default to modern
 
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -73,7 +83,7 @@ export default function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // === Plan state ===
+  // Plan state
   const [planKey, setPlanKey] = useState<"free" | "basic" | "pro">("free");
   const [dailyLimit, setDailyLimit] = useState<number>(3);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(10);
@@ -81,13 +91,11 @@ export default function App() {
 
   const isPro = planKey === "pro";
   const isBasic = planKey === "basic";
-  const isPremium = isPro; // backward-compat alias
+  const isPremium = isPro; // backward compat alias
 
-  // Allowed options per tier
+  // Gating
   const allowedBgCount = isPro ? BACKGROUNDS.length : isBasic ? 4 : 2;
   const allowedFontCount = isPro ? FONTS.length : isBasic ? 2 : 1;
-  const gatedBackgrounds = BACKGROUNDS.slice(0, allowedBgCount);
-  const gatedFonts = FONTS.slice(0, allowedFontCount);
   const isBgAllowed = (bgId: number) => bgId <= allowedBgCount;
   const isFontAllowed = (fontId: number) => fontId <= allowedFontCount;
 
@@ -152,14 +160,18 @@ export default function App() {
     setView("landing");
   }
 
-  /* ==================== SEARCH / RANDOM / SELECT ==================== */
+  /* ==================== SEARCH HELPERS ==================== */
 
-  async function handleSearch() {
+  async function runSearch(q: string) {
     setIsLoading(true);
     setView("search");
-    const rows = await searchQuotes(searchQuery, 24);
+    const rows = await searchQuotes(q, 24);
     setSearchResults(rows);
     setIsLoading(false);
+  }
+
+  async function handleSearch() {
+    await runSearch(searchQuery);
   }
 
   async function handleRandom() {
@@ -189,13 +201,12 @@ export default function App() {
     setFavorites(next);
   }
 
-  /* ==================== WATERMARK RENDERER ==================== */
+  /* ==================== WATERMARK ==================== */
 
   function renderWatermark(ctx: CanvasRenderingContext2D) {
     if (watermarkLevel === "none") return;
 
     if (watermarkLevel === "small") {
-      // small bottom-right
       ctx.save();
       ctx.globalAlpha = 0.7;
       ctx.font = "bold 18px Inter";
@@ -206,12 +217,11 @@ export default function App() {
       return;
     }
 
-    // full diagonal (free)
     ctx.save();
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.18;
     ctx.translate(600, 315);
     ctx.rotate(-Math.PI / 6);
-    ctx.font = "bold 72px Inter";
+    ctx.font = "bold 64px Inter";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.fillText("AnimeQuoteStudio.com", 0, 0);
@@ -222,8 +232,8 @@ export default function App() {
 
   async function downloadImage() {
     if (!user) return setAuthView("signin");
+    if (!selectedQuote) return;
 
-    // per-plan daily limit check (server still tracks via your RPC)
     const todayCount = await getDownloadsToday(user.id);
     if (Number.isFinite(dailyLimit) && todayCount >= dailyLimit) {
       setDownloadLimitMsg(
@@ -242,7 +252,7 @@ export default function App() {
 
     // Background
     const grad = ctx.createLinearGradient(0, 0, 1200, 630);
-    const hexes = background.css.match(/#[0-9a-f]{6}/gi) ?? ["#667eea", "#764ba2"];
+    const hexes = background.css.match(/#[0-9a-f]{6}/gi) ?? ["#4f46e5", "#6366f1"];
     grad.addColorStop(0, hexes[0]);
     grad.addColorStop(1, hexes[1]);
     ctx.fillStyle = grad;
@@ -252,13 +262,14 @@ export default function App() {
     const marginX = 120;
     const maxWidth = 1200 - marginX * 2;
     let size = 56;
+
     ctx.textAlign = "center";
     ctx.fillStyle = "white";
-    ctx.shadowColor = "rgba(0,0,0,0.6)";
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = "rgba(15,23,42,0.9)";
+    ctx.shadowBlur = 14;
 
     function linesFor(text: string, fontSize: number) {
-      ctx.font = `bold ${fontSize}px ${font.css}`;
+      ctx.font = `600 ${fontSize}px ${font.css}`;
       const words = text.split(" ");
       const lines: string[] = [];
       let line = "";
@@ -267,67 +278,63 @@ export default function App() {
         if (ctx.measureText(test).width > maxWidth) {
           if (line) lines.push(line);
           line = w;
-        } else {
-          line = test;
-        }
+        } else line = test;
       }
       if (line) lines.push(line);
       return lines;
     }
 
     let lines = linesFor(`"${selectedQuote.quote_text}"`, size);
-    while (lines.length > 4 && size > 28) {
+    while (lines.length > 4 && size > 26) {
       size -= 2;
       lines = linesFor(`"${selectedQuote.quote_text}"`, size);
     }
 
-    const startY = 210 - ((lines.length - 1) * (size + 12)) / 2;
-    lines.forEach((ln, i) => ctx.fillText(ln, 600, startY + i * (size + 12)));
+    const startY = 210 - ((lines.length - 1) * (size + 14)) / 2;
+    lines.forEach((ln, i) => {
+      ctx.font = `600 ${size}px ${font.css}`;
+      ctx.fillText(ln, 600, startY + i * (size + 14));
+    });
 
     // Attribution
-    ctx.font = `bold 28px Inter`;
+    ctx.shadowBlur = 10;
+    ctx.font = `600 26px Inter`;
     ctx.fillText(
       `— ${selectedQuote.character.name}`,
       600,
-      startY + lines.length * (size + 12) + 60
+      startY + lines.length * (size + 14) + 56
     );
-    ctx.font = `24px Inter`;
+    ctx.font = `400 22px Inter`;
     ctx.fillText(
       `${selectedQuote.anime.title}`,
       600,
-      startY + lines.length * (size + 12) + 100
+      startY + lines.length * (size + 14) + 92
     );
 
-    // Watermark by plan
     renderWatermark(ctx);
 
-    // Export
     const link = document.createElement("a");
     link.download = `quote-${selectedQuote.id}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
 
-    // Record download in DB (your existing RPC)
     await incrementDownloadsPerUser(user.id, selectedQuote.id, background.name, font.name);
-
-    // Refresh stats
     const s = await loadStats();
     setStats(s);
   }
 
-  /* ==================== VIEWS ==================== */
+  /* ==================== AUTH VIEW ==================== */
 
-  // ---------- Auth View ----------
   if (authView) {
     const isSignUp = authView === "signup";
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-red-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-          <h2 className="text-3xl font-bold text-center mb-6">
-            {isSignUp ? "Create Account" : "Welcome Back"}
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+        <div className="bg-slate-900/80 border border-slate-700 rounded-2xl shadow-2xl p-8 max-w-md w-full backdrop-blur">
+          <h2 className="text-3xl font-semibold text-slate-50 text-center mb-6">
+            {isSignUp ? "Create your account" : "Welcome back"}
           </h2>
           {authError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+            <div className="bg-red-900/40 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-4 text-sm">
               {authError}
             </div>
           )}
@@ -342,23 +349,23 @@ export default function App() {
               name="email"
               type="email"
               required
-              placeholder="your@email.com"
-              className="w-full px-4 py-3 mb-4 border-2 rounded-lg focus:border-purple-600 outline-none"
+              placeholder="Email"
+              className="w-full px-4 py-3 mb-3 bg-slate-900 border border-slate-700 rounded-lg text-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <input
               name="password"
               type="password"
               required
               minLength={6}
-              placeholder="Password (min 6 characters)"
-              className="w-full px-4 py-3 mb-6 border-2 rounded-lg focus:border-purple-600 outline-none"
+              placeholder="Password"
+              className="w-full px-4 py-3 mb-5 bg-slate-900 border border-slate-700 rounded-lg text-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50"
+              className="w-full bg-indigo-500 hover:bg-indigo-400 transition-colors text-slate-950 py-3 rounded-lg text-sm font-semibold disabled:opacity-50"
             >
-              {isLoading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
+              {isLoading ? "Loading..." : isSignUp ? "Create account" : "Sign in"}
             </button>
           </form>
           <button
@@ -366,146 +373,174 @@ export default function App() {
               setAuthView(isSignUp ? "signin" : "signup");
               setAuthError(null);
             }}
-            className="w-full mt-4 text-purple-600 hover:underline"
+            className="w-full mt-4 text-indigo-400 text-sm"
           >
-            {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+            {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
           </button>
-          <button onClick={() => setAuthView(null)} className="w-full mt-2 text-gray-600">
-            ← Back
+          <button
+            onClick={() => setAuthView(null)}
+            className="w-full mt-2 text-slate-500 text-xs"
+          >
+            ← Back to site
           </button>
         </div>
       </div>
     );
   }
 
-  // ---------- Pricing View ----------
+  /* ==================== PRICING VIEW ==================== */
+
   if (showPricing) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-purple-600 text-white p-4">
-          <div className="container mx-auto flex justify-between">
-            <h1 className="text-2xl font-bold">Anime Quote Studio</h1>
+      <div className="min-h-screen bg-slate-950 text-slate-50">
+        <header className="border-b border-slate-800">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✨</span>
+              <span className="font-semibold tracking-tight">Anime Quote Studio</span>
+            </div>
             <button
               onClick={() => setShowPricing(false)}
-              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold"
+              className="text-xs px-3 py-2 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
             >
               ← Back
             </button>
           </div>
-        </div>
+        </header>
 
-        <div className="container mx-auto px-4 py-16">
-          <h2 className="text-5xl font-bold text-center mb-4">Choose Your Plan</h2>
-          <p className="text-xl text-gray-600 text-center mb-12">
-            Create stunning anime quote visuals. Upgrade anytime.
-          </p>
-
-          {downloadLimitMsg && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto mb-8 text-yellow-800">
-              {downloadLimitMsg}
-            </div>
-          )}
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* FREE */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border-2">
-              <h3 className="text-2xl font-bold mb-4">Free</h3>
-              <div className="text-4xl font-bold mb-6">
-                $0<span className="text-lg text-gray-600">/mo</span>
+        <main className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center mb-10">
+            <h1 className="text-4xl font-semibold tracking-tight mb-2">Choose your flow</h1>
+            <p className="text-sm text-slate-400">
+              Start free. Upgrade only when you’re using it regularly.
+            </p>
+            {downloadLimitMsg && (
+              <div className="mt-4 inline-block px-4 py-2 rounded-lg bg-amber-900/40 border border-amber-500 text-amber-200 text-xs">
+                {downloadLimitMsg}
               </div>
-              <ul className="space-y-3 mb-8">
-                <li>✓ 3 downloads/day (or 10/month)</li>
-                <li>✓ 2 backgrounds</li>
-                <li>✓ 1 font</li>
-                <li>• Watermark (full)</li>
-              </ul>
-              <div className="text-center text-gray-600 font-semibold">
-                {planKey === "free" ? "Current Plan" : ""}
+            )}
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Free */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Free</h2>
+                <p className="text-xs text-slate-500 mb-4">For trying things out.</p>
+                <div className="text-3xl font-semibold mb-4">
+                  $0<span className="text-xs text-slate-500">/mo</span>
+                </div>
+                <ul className="space-y-2 text-xs text-slate-300 mb-4">
+                  <li>3 downloads/day or 10/month</li>
+                  <li>2 curated backgrounds</li>
+                  <li>1 clean font</li>
+                  <li>Full diagonal watermark</li>
+                </ul>
+              </div>
+              <div className="text-xs text-slate-500">
+                {planKey === "free" ? "Current plan" : "Included for everyone"}
               </div>
             </div>
 
-            {/* BASIC */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border-2">
-              <h3 className="text-2xl font-bold mb-1">Basic</h3>
-              <p className="text-gray-500 mb-3">$2.99/mo or $24/yr</p>
-              <ul className="space-y-3 mb-8">
-                <li>✓ 20 downloads/day</li>
-                <li>✓ 4 backgrounds</li>
-                <li>✓ 2 fonts</li>
-                <li>• Small watermark</li>
-              </ul>
-              <button className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700">
+            {/* Basic */}
+            <div className="bg-slate-900 border border-indigo-500/60 rounded-2xl p-6 flex flex-col justify-between">
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Basic</h2>
+                <p className="text-xs text-slate-500 mb-4">For active social posting.</p>
+                <div className="text-3xl font-semibold mb-1">
+                  $2.99<span className="text-xs text-slate-500">/mo</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mb-4">or $24/year</p>
+                <ul className="space-y-2 text-xs text-slate-300 mb-4">
+                  <li>20 downloads/day</li>
+                  <li>4 premium backgrounds</li>
+                  <li>2 fonts</li>
+                  <li>Minimal corner watermark</li>
+                </ul>
+              </div>
+              <button className="w-full mt-2 text-xs py-2 rounded-lg bg-indigo-500 text-slate-950 font-semibold hover:bg-indigo-400">
                 Upgrade to Basic
               </button>
             </div>
 
-            {/* PRO */}
-            <div className="bg-gradient-to-br from-purple-600 to-pink-500 rounded-2xl shadow-2xl p-8 text-white relative">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-purple-900 px-4 py-1 rounded-full font-bold text-sm">
-                BEST VALUE
+            {/* Pro */}
+            <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-6 text-slate-950 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_top,_#fff,_transparent_60%)] pointer-events-none" />
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/10 text-[10px] font-semibold mb-3">
+                  <Crown size={14} /> Best for creators
+                </div>
+                <h2 className="text-lg font-semibold mb-1">Pro</h2>
+                <p className="text-xs text-slate-900/80 mb-4">For serious pages & shops.</p>
+                <div className="text-3xl font-semibold mb-1">
+                  $4.99<span className="text-xs text-slate-900/80">/mo</span>
+                </div>
+                <p className="text-[10px] text-slate-900/80 mb-4">or $39/year</p>
+                <ul className="space-y-2 text-xs text-slate-900 mb-4">
+                  <li className="flex items-center gap-2">
+                    <Zap size={14} /> Unlimited downloads
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Sparkles size={14} /> All 8+ backgrounds & all fonts
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Crown size={14} /> No watermark
+                  </li>
+                  <li className="flex items-center gap-2">Priority support & early features</li>
+                </ul>
               </div>
-              <div className="flex items-center gap-2 mb-4">
-                <Crown size={32} />
-                <h3 className="text-2xl font-bold">Pro</h3>
-              </div>
-              <div className="text-4xl font-bold mb-2">
-                $4.99<span className="text-lg opacity-80">/mo</span>
-              </div>
-              <p className="text-sm opacity-80 mb-6">or $39/yr</p>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <Zap size={20} className="text-yellow-300" /> Unlimited downloads
-                </li>
-                <li className="flex items-center gap-2">
-                  <Sparkles size={20} className="text-yellow-300" /> 8+ backgrounds • All fonts
-                </li>
-                <li className="flex items-center gap-2">
-                  <Crown size={20} className="text-yellow-300" /> No watermark • Priority support
-                </li>
-                <li className="flex items-center gap-2">Early access to new features</li>
-              </ul>
-              <button className="w-full bg-white text-purple-600 py-4 rounded-lg font-bold text-lg hover:scale-105 transition">
+              <button className="relative w-full mt-2 text-xs py-2 rounded-lg bg-slate-950 text-slate-50 font-semibold hover:bg-slate-900">
                 Upgrade to Pro
               </button>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
-  // ---------- Landing ----------
+  /* ==================== LANDING ==================== */
+
   if (view === "landing") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-red-500">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-white">✨ Anime Quote Studio</h1>
-            <div className="flex gap-2">
+      <div className="min-h-screen bg-slate-950 text-slate-50">
+        <header className="border-b border-slate-900/80 bg-slate-950/80 backdrop-blur">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✨</span>
+              <span className="font-semibold tracking-tight">Anime Quote Studio</span>
+            </div>
+            <div className="flex items-center gap-2">
               {user ? (
                 <>
-                  <div className="bg-white/20 backdrop-blur text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                    {isPro ? <Crown size={20} className="text-yellow-300" /> : <User size={20} />}
-                    <span className="capitalize">{planKey}</span> • {user.email?.split("@")[0]}
+                  <div className="px-3 py-2 rounded-lg bg-slate-900 flex items-center gap-2 text-xs">
+                    {isPro ? (
+                      <Crown size={16} className="text-yellow-300" />
+                    ) : (
+                      <User size={16} className="text-slate-400" />
+                    )}
+                    <span className="capitalize">{planKey}</span>
+                    <span className="text-slate-500">•</span>
+                    <span>{user.email?.split("@")[0]}</span>
                   </div>
                   <button
                     onClick={handleSignOut}
-                    className="bg-white/20 backdrop-blur text-white px-4 py-2 rounded-lg"
+                    className="px-3 py-2 rounded-lg bg-slate-900 text-slate-300 text-xs hover:bg-slate-800"
                   >
-                    <LogOut size={20} />
+                    <LogOut size={14} />
                   </button>
                 </>
               ) : (
                 <>
                   <button
                     onClick={() => setAuthView("signin")}
-                    className="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold"
+                    className="px-3 py-2 rounded-lg bg-slate-900 text-slate-200 text-xs"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={() => setAuthView("signup")}
-                    className="bg-purple-900 text-white px-6 py-2 rounded-lg font-semibold"
+                    className="px-3 py-2 rounded-lg bg-indigo-500 text-slate-950 text-xs font-semibold"
                   >
                     Sign Up
                   </button>
@@ -513,293 +548,405 @@ export default function App() {
               )}
             </div>
           </div>
+        </header>
 
-          <div className="text-center text-white mb-12">
-            <h2 className="text-6xl font-bold mb-4">Create & Share Anime Quotes</h2>
-            <p className="text-2xl mb-4">Search, Customize & Download</p>
-            <p className="text-lg mb-2 opacity-90">
+        <main className="max-w-6xl mx-auto px-4 pt-10 pb-16">
+          <section className="text-center mb-14">
+            <p className="text-xs text-indigo-400 mb-2">AI-assisted anime quote visuals</p>
+            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-3">
+              Create & share anime quotes in seconds
+            </h1>
+            <p className="text-sm text-slate-400 mb-3">
+              Search by character, anime, or emotion. Auto-styled. Download-ready for socials.
+            </p>
+            <p className="text-[11px] text-slate-500 mb-6">
               {stats.total}+ quotes • {stats.views} views • {stats.downloads} downloads
             </p>
-            {user && (
-              <p className="text-sm opacity-90">
-                Usage today:{" "}
-                {isPro ? "Unlimited" : `${awaitLabelDaily(dailyLimit)} (limit)`}
-              </p>
-            )}
-            <div className="flex gap-4 justify-center flex-wrap mt-6">
+            <div className="flex flex-wrap justify-center gap-3 mb-4">
               <button
                 onClick={() => setView("search")}
-                className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-xl hover:scale-105 transition shadow-lg"
+                className="px-6 py-3 rounded-full bg-slate-50 text-slate-900 text-sm font-semibold flex items-center gap-2 shadow-sm hover:bg-slate-200"
               >
-                🔍 Start
+                <Search size={16} /> Start
               </button>
               <button
                 onClick={handleRandom}
                 disabled={isLoading}
-                className="bg-purple-900 text-white px-8 py-4 rounded-full font-bold text-xl hover:scale-105 transition shadow-lg flex items-center gap-2"
+                className="px-6 py-3 rounded-full bg-indigo-500 text-slate-950 text-sm font-semibold flex items-center gap-2 hover:bg-indigo-400"
               >
-                {isLoading ? <Loader className="animate-spin" size={24} /> : <Shuffle size={24} />} Random
+                {isLoading ? (
+                  <Loader size={16} className="animate-spin" />
+                ) : (
+                  <Shuffle size={16} />
+                )}
+                Random
               </button>
               {(!user || !isPro) && (
                 <button
                   onClick={() => setShowPricing(true)}
-                  className="bg-yellow-400 text-purple-900 px-8 py-4 rounded-full font-bold text-xl hover:scale-105 transition shadow-lg flex items-center gap-2"
+                  className="px-6 py-3 rounded-full bg-yellow-400 text-slate-950 text-sm font-semibold flex items-center gap-2 hover:bg-yellow-300"
                 >
-                  <Crown size={24} /> Upgrade
+                  <Crown size={16} /> Upgrade
                 </button>
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="bg-white/10 backdrop-blur p-6 rounded-2xl text-white hover:scale-105 transition">
-              <Search size={48} className="mb-4 mx-auto" />
-              <h3 className="text-xl font-bold mb-2">{stats.total}+ Quotes</h3>
-              <p>Search by anime, character, and emotion</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur p-6 rounded-2xl text-white hover:scale-105 transition">
-              <Sparkles size={48} className="mb-4 mx-auto" />
-              <h3 className="text-xl font-bold mb-2">Customize</h3>
-              <p>
-                {allowedBgCount}+ backgrounds, {allowedFontCount}+ fonts
+          <section className="grid md:grid-cols-3 gap-4 text-xs">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2">
+              <Search size={22} className="text-indigo-400" />
+              <h3 className="font-semibold text-slate-100">Search</h3>
+              <p className="text-slate-400">
+                Find quotes by anime, character, or emotion like{" "}
+                <span className="text-slate-200">“inspiring”</span> or{" "}
+                <span className="text-slate-200">“sad”</span>.
               </p>
             </div>
-            <div className="bg-white/10 backdrop-blur p-6 rounded-2xl text-white hover:scale-105 transition">
-              <Download size={48} className="mb-4 mx-auto" />
-              <h3 className="text-xl font-bold mb-2">Share</h3>
-              <p>Perfect for social media</p>
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2">
+              <Sparkles size={22} className="text-indigo-400" />
+              <h3 className="font-semibold text-slate-100">Customize</h3>
+              <p className="text-slate-400">
+                On-brand gradients & font pairing, gated by your plan to keep things simple.
+              </p>
             </div>
-          </div>
-        </div>
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2">
+              <Download size={22} className="text-indigo-400" />
+              <h3 className="font-semibold text-slate-100">Share</h3>
+              <p className="text-slate-400">
+                One-tap PNG downloads optimized for Twitter, IG, TikTok & more.
+              </p>
+            </div>
+          </section>
+        </main>
       </div>
     );
   }
 
-  // ---------- Search ----------
+  /* ==================== SEARCH VIEW ==================== */
+
   if (view === "search") {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-purple-600 text-white p-4">
-          <div className="container mx-auto flex justify-between">
-            <h1 className="text-2xl font-bold cursor-pointer" onClick={() => setView("landing")}>
-              Anime Quote Studio
-            </h1>
+      <div className="min-h-screen bg-slate-950 text-slate-50">
+        <header className="border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => setView("landing")}
+            >
+              <span className="text-lg">✨</span>
+              <span className="font-semibold text-sm">Anime Quote Studio</span>
+            </div>
             <button
               onClick={handleRandom}
               disabled={isLoading}
-              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+              className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 text-xs flex items-center gap-2 hover:bg-slate-800"
             >
-              {isLoading ? <Loader className="animate-spin" size={20} /> : <Shuffle size={20} />}
+              {isLoading ? (
+                <Loader size={14} className="animate-spin" />
+              ) : (
+                <Shuffle size={14} />
+              )}
+              Random
             </button>
           </div>
-        </div>
+        </header>
 
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-3xl mx-auto mb-8 flex gap-2">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="flex-1 px-4 py-3 rounded-lg border-2 focus:border-purple-600 outline-none"
-              aria-label="Search quotes"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold"
-            >
-              {isLoading ? <Loader className="animate-spin" size={24} /> : <Search size={24} />}
-            </button>
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          <div className="mb-4">
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Search by anime, character, quote text, or emotion..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="flex-1 px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={isLoading}
+                className="px-5 py-3 rounded-xl bg-indigo-500 text-slate-950 text-sm font-semibold flex items-center justify-center hover:bg-indigo-400 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <Loader size={18} className="animate-spin" />
+                ) : (
+                  <Search size={18} />
+                )}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] text-slate-400">
+              {EMOTIONS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => {
+                    setSearchQuery(e);
+                    runSearch(e);
+                  }}
+                  className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 hover:border-indigo-500 hover:text-indigo-300 transition"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12">
-              <Loader className="animate-spin mx-auto mb-4 text-purple-600" size={48} />
-              <p className="text-gray-600">Searching...</p>
+              <Loader className="animate-spin mx-auto mb-3 text-indigo-500" size={32} />
+              <p className="text-slate-500 text-sm">Searching quotes...</p>
             </div>
           ) : searchResults.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-xl mb-4">Click search!</p>
+            <div className="text-center py-16">
+              <p className="text-slate-500 text-sm mb-4">
+                Start with a character, anime title, or an emotion keyword.
+              </p>
               <button
-                onClick={handleSearch}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg"
+                onClick={() => runSearch("")}
+                className="px-5 py-2 rounded-lg bg-slate-900 text-slate-100 text-xs hover:bg-slate-800"
               >
-                Show All
+                Show all approved quotes
               </button>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-4">
               {searchResults.map((q) => (
-                <div
+                <article
                   key={q.id}
-                  className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition border-2 hover:border-purple-400"
+                  className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col gap-2 hover:border-indigo-500/70 hover:-translate-y-0.5 hover:shadow-xl transition cursor-pointer"
+                  onClick={() => selectQuote(q)}
                 >
-                  <div className="flex justify-between mb-4">
-                    <p
-                      className="text-xl italic flex-1 cursor-pointer"
-                      onClick={() => selectQuote(q)}
-                    >
-                      "{q.quote_text}"
+                  <div className="flex justify-between items-start gap-3">
+                    <p className="text-sm text-slate-100 leading-relaxed">
+                      “{q.quote_text}”
                     </p>
                     <button
-                      onClick={() => toggleFavorite(String(q.id))}
-                      className={favorites.includes(String(q.id)) ? "text-red-500" : "text-gray-400"}
-                      aria-label="Toggle favorite"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(String(q.id));
+                      }}
+                      className={
+                        favorites.includes(String(q.id))
+                          ? "text-rose-400"
+                          : "text-slate-500 hover:text-rose-400"
+                      }
                     >
                       <Heart
-                        size={24}
-                        fill={favorites.includes(String(q.id)) ? "currentColor" : "none"}
+                        size={18}
+                        fill={
+                          favorites.includes(String(q.id)) ? "currentColor" : "none"
+                        }
                       />
                     </button>
                   </div>
-                  <div className="cursor-pointer" onClick={() => selectQuote(q)}>
-                    <p className="font-semibold text-purple-600">{q.character.name}</p>
-                    <p className="text-sm text-gray-600">
-                      {q.anime.title} {q.episode_number ? `• Ep ${q.episode_number}` : ""}
-                    </p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                    <div>
+                      <span className="text-indigo-300 font-medium">
+                        {q.character.name}
+                      </span>{" "}
+                      <span className="text-slate-500">• {q.anime.title}</span>
+                      {q.episode_number && (
+                        <span className="text-slate-600">
+                          {" "}
+                          • Ep {q.episode_number}
+                        </span>
+                      )}
+                    </div>
+                    {q.emotion && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[9px] text-slate-400">
+                        {q.emotion}
+                      </span>
+                    )}
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
-        </div>
+        </main>
       </div>
     );
   }
 
-  // ---------- Generator ----------
+  /* ==================== GENERATOR VIEW ==================== */
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-purple-600 text-white p-4">
-        <div className="container mx-auto flex justify-between">
-          <h1 className="text-2xl font-bold cursor-pointer" onClick={() => setView("landing")}>
-            Anime Quote Studio
-          </h1>
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => setView("landing")}
+          >
+            <span className="text-lg">✨</span>
+            <span className="font-semibold text-sm">Anime Quote Studio</span>
+          </div>
           <button
             onClick={() => setView("search")}
-            className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold"
+            className="px-3 py-2 rounded-lg bg-slate-900 text-slate-100 text-xs hover:bg-slate-800"
           >
-            ← Back
+            ← Back to search
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Preview</h2>
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-6 items-start">
+          {/* Preview */}
+          <section>
+            <h2 className="text-sm font-semibold text-slate-300 mb-3">
+              Preview
+            </h2>
             <div
-              className="rounded-xl shadow-2xl aspect-video flex items-center justify-center p-8"
+              className="rounded-2xl shadow-2xl aspect-video flex items-center justify-center p-8 border border-slate-800 bg-slate-900 overflow-hidden"
               style={{ background: background.css }}
             >
-              <div className="text-center">
+              <div className="text-center max-w-xl mx-auto">
                 <p
-                  className="text-white text-3xl font-bold mb-6 drop-shadow-lg"
+                  className="text-white text-2xl md:text-3xl font-semibold mb-5 leading-relaxed drop-shadow-[0_8px_24px_rgba(15,23,42,0.9)]"
                   style={{ fontFamily: font.css }}
                 >
-                  "{selectedQuote?.quote_text}"
+                  {selectedQuote ? `“${selectedQuote.quote_text}”` : "Pick a quote from search or try Random."}
                 </p>
-                <p className="text-white text-xl drop-shadow-lg">— {selectedQuote?.character?.name}</p>
-                <p className="text-white/80 text-lg drop-shadow-lg">{selectedQuote?.anime?.title}</p>
+                {selectedQuote && (
+                  <>
+                    <p className="text-sm md:text-base text-slate-100 font-semibold drop-shadow">
+                      — {selectedQuote.character.name}
+                    </p>
+                    <p className="text-xs md:text-sm text-slate-200/80 drop-shadow">
+                      {selectedQuote.anime.title}
+                      {selectedQuote.episode_number
+                        ? ` • Ep ${selectedQuote.episode_number}`
+                        : ""}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <canvas ref={canvasRef} className="hidden" />
-          </div>
+          </section>
 
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Customize</h2>
+          {/* Controls */}
+          <section>
+            <h2 className="text-sm font-semibold text-slate-300 mb-3">
+              Customize
+            </h2>
 
-            {/* Backgrounds with gating */}
-            <div className="bg-white p-6 rounded-xl shadow-lg mb-4">
-              <h3 className="font-semibold mb-3">Background</h3>
-              <div className="grid grid-cols-4 gap-3">
+            {/* Backgrounds */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-slate-200">
+                  Background
+                </span>
+                <span className="text-[9px] text-slate-500">
+                  {allowedBgCount} / {BACKGROUNDS.length} unlocked
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
                 {BACKGROUNDS.map((bg) => (
                   <button
                     key={bg.id}
-                    onClick={() => (!isBgAllowed(bg.id) ? setShowPricing(true) : setBackground(bg))}
-                    className={`h-16 rounded-lg border-4 hover:scale-110 transition relative ${
-                      background.id === bg.id ? "border-purple-600" : "border-gray-200"
+                    onClick={() =>
+                      !isBgAllowed(bg.id)
+                        ? setShowPricing(true)
+                        : setBackground(bg)
+                    }
+                    className={`h-12 rounded-xl border text-[9px] text-slate-50 flex items-end justify-start px-1 pb-1 relative overflow-hidden transition ${
+                      background.id === bg.id
+                        ? "border-indigo-400 ring-1 ring-indigo-400/40"
+                        : "border-slate-800 hover:border-slate-600"
                     }`}
                     style={{ background: bg.css }}
-                    aria-label={`Background ${bg.name}`}
                   >
+                    <span className="backdrop-blur-sm bg-slate-950/30 px-1 rounded">
+                      {bg.name}
+                    </span>
                     {!isBgAllowed(bg.id) && (
-                      <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
-                        <Lock size={20} className="text-yellow-300" />
+                      <div className="absolute inset-0 bg-slate-950/65 flex items-center justify-center">
+                        <Lock size={14} className="text-yellow-300" />
                       </div>
                     )}
                   </button>
                 ))}
               </div>
-              {BACKGROUNDS.length > gatedBackgrounds.length && (
-                <div className="col-span-4 mt-2 text-sm text-gray-500">
-                  More backgrounds available on {isBasic ? "Pro" : "Basic/Pro"}.
-                </div>
+              {BACKGROUNDS.length > allowedBgCount && (
+                <p className="mt-2 text-[9px] text-slate-500">
+                  Unlock more backgrounds with Basic/Pro.
+                </p>
               )}
             </div>
 
-            {/* Fonts with gating */}
-            <div className="bg-white p-6 rounded-xl shadow-lg mb-4">
-              <h3 className="font-semibold mb-3">Font</h3>
-              <div className="flex gap-3">
+            {/* Fonts */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-slate-200">
+                  Font
+                </span>
+                <span className="text-[9px] text-slate-500">
+                  {allowedFontCount} / {FONTS.length} unlocked
+                </span>
+              </div>
+              <div className="flex gap-2">
                 {FONTS.map((f) => (
                   <button
                     key={f.id}
-                    onClick={() => (!isFontAllowed(f.id) ? setShowPricing(true) : setFont(f))}
-                    className={`flex-1 py-3 rounded-lg border-2 transition relative ${
-                      font.id === f.id ? "border-purple-600 bg-purple-50" : "border-gray-200"
+                    onClick={() =>
+                      !isFontAllowed(f.id) ? setShowPricing(true) : setFont(f)
+                    }
+                    className={`flex-1 py-2 rounded-xl border text-xs transition relative ${
+                      font.id === f.id
+                        ? "border-indigo-400 bg-slate-900"
+                        : "border-slate-800 bg-slate-950 hover:border-slate-600"
                     }`}
                     style={{ fontFamily: f.css }}
-                    aria-label={`Font ${f.name}`}
                   >
                     {f.name}
                     {!isFontAllowed(f.id) && (
-                      <Lock size={16} className="absolute top-1 right-1 text-yellow-500" />
+                      <Lock
+                        size={12}
+                        className="absolute top-1.5 right-1.5 text-yellow-400"
+                      />
                     )}
                   </button>
                 ))}
               </div>
-              {FONTS.length > gatedFonts.length && (
-                <div className="mt-2 text-sm text-gray-500">
-                  More fonts available on {isBasic ? "Pro" : "Basic/Pro"}.
-                </div>
+              {FONTS.length > allowedFontCount && (
+                <p className="mt-2 text-[9px] text-slate-500">
+                  Unlock all fonts on Pro.
+                </p>
               )}
             </div>
 
             <button
               onClick={downloadImage}
-              className="w-full bg-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-purple-700 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-indigo-500 text-slate-950 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-400 mb-3"
             >
-              <Download size={24} /> Download
+              <Download size={18} /> Download PNG
             </button>
 
             {user && !isPro && (
-              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800 text-center">
-                  {isBasic
-                    ? "20 downloads/day on Basic"
-                    : "3 downloads/day (or 10/month) on Free"}{" "}
-                  •{" "}
-                  <button onClick={() => setShowPricing(true)} className="font-semibold underline">
-                    Upgrade for more
-                  </button>
-                </p>
+              <div className="mb-3 px-3 py-2 rounded-xl bg-amber-900/30 border border-amber-700 text-[9px] text-amber-200 text-center">
+                {isBasic
+                  ? "20 downloads/day on Basic."
+                  : "Free plan: 3 downloads/day or 10/month."}{" "}
+                <button
+                  onClick={() => setShowPricing(true)}
+                  className="underline font-semibold"
+                >
+                  Upgrade for more.
+                </button>
               </div>
             )}
 
-            <div className="mt-4 flex gap-2">
-              <button className="flex-1 bg-blue-500 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-blue-600">
-                <Twitter size={20} /> Twitter
+            <div className="flex gap-2 mt-1">
+              <button className="flex-1 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-300 flex items-center justify-center gap-2 hover:bg-slate-800">
+                <Twitter size={14} /> Share on X
               </button>
-              <button className="flex-1 bg-pink-500 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-pink-600">
-                <Instagram size={20} /> Instagram
+              <button className="flex-1 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-300 flex items-center justify-center gap-2 hover:bg-slate-800">
+                <Instagram size={14} /> Share on IG
               </button>
             </div>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
