@@ -53,18 +53,27 @@ export async function loadStats(): Promise<Stats> {
   return { total, views, downloads };
 }
 
-export async function searchQuotes(searchText: string | null, pageSize = 24, page = 1) {
+export async function searchQuotes(
+  searchText: string,
+  emotionFilter: string | null,
+  page: number,
+  pageSize: number
+) {
   const { data, error } = await supabase.rpc("search_quotes", {
-    search_text: searchText || null,
+    search_text: searchText && searchText.trim().length > 0 ? searchText : null,
+    emotion_filter:
+      emotionFilter && emotionFilter.trim().length > 0 ? emotionFilter : null,
     page,
     page_size: pageSize,
   });
+
   if (error) {
     console.error("search_quotes error", error);
-    return [];
+    throw error;
   }
-  return data || [];
+  return data ?? [];
 }
+
 
 export async function searchQuotesByEmotion(emotion: string, pageSize = 24, page = 1) {
   const { data, error } = await supabase.rpc("search_quotes_by_emotion", {

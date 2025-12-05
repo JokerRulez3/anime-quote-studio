@@ -186,23 +186,27 @@ export default function App() {
   /* ==================== SEARCH (TEXT) ==================== */
 
   async function handleSearch() {
-    setIsLoading(true);
-    setActiveEmotion(null); // text search stands alone
-    setDownloadLimitMsg(null);
+  setIsLoading(true);
+  setActiveEmotion(null);      // text search stands alone, clear emotion chip
+  setDownloadLimitMsg(null);
 
-    try {
-      const q = searchQuery.trim();
-      const rows = await searchQuotes(q || null, 1, 24);
-      setSearchResults(rows || []);
-      setView("search");
-    } catch (err) {
-      console.error("searchQuotes failed:", err);
-      setSearchResults([]);
-      setView("search");
-    } finally {
-      setIsLoading(false);
-    }
+  try {
+    const q = searchQuery.trim();
+
+    // search_text = q or null, emotion_filter = null (no emotion filter)
+    const rows = await searchQuotes(q || null, null, 1, 24);
+
+    setSearchResults(rows || []);
+    setView("search");
+  } catch (err) {
+    console.error("searchQuotes failed:", err);
+    setSearchResults([]);
+    setView("search");
+  } finally {
+    setIsLoading(false);
   }
+}
+
 
   /* ==================== SEARCH (EMOTION-ONLY) ==================== */
 
